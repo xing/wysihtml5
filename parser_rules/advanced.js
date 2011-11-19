@@ -180,12 +180,15 @@ var wysihtml5ParserRules = {
             "rename_tag": "span"
         },
         "iframe": {
-            "set_attributes": {
-                "src":"http://player.vimeo.com/video/29413609?portrait=0&amp;color=ff9933",
-                "width":"400",
-                "height":"225",
+            "check_attributes": {
+                "src":"url",
+                "width":"numbers",
+                "height":"numbers"                
+            },
+            "set_attributes":{
                 "frameborder":"0"
             }
+
         },
         "figcaption": {
             "rename_tag": "div"
