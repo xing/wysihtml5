@@ -95,6 +95,7 @@
     <a data-wysihtml5-command="createLink">insert link</a> |
     <a data-wysihtml5-command="insertImage">insert image</a> |
     <a data-wysihtml5-command="insertVideo">insert video</a> |
+    <a data-wysihtml5-command="insertEmbedVideo">insert embed video</a> |
     <a data-wysihtml5-command="formatBlock" data-wysihtml5-command-value="h1">h1</a> |
     <a data-wysihtml5-command="formatBlock" data-wysihtml5-command-value="h2">h2</a> |
     <a data-wysihtml5-command="insertUnorderedList">insertUnorderedList</a> |
@@ -129,9 +130,18 @@
       <a data-wysihtml5-dialog-action="save">OK</a>&nbsp;<a data-wysihtml5-dialog-action="cancel">Cancel</a>
     </div>
     <!-- Insert image dialog -->
+    <div data-wysihtml5-dialog="insertEmbedVideo" style="display: none;">
+      <label>
+        Video embed code:
+        <textarea data-wysihtml5-dialog-field="src" class="text"><iframe src="http://player.vimeo.com/video/13728146?title=0&amp;byline=0&amp;portrait=0&amp;color=346F87" width="400" height="225" frameborder="0" webkitAllowFullScreen mozallowfullscreen allowFullScreen></iframe></textarea>
+      </label>
+      <a data-wysihtml5-dialog-action="save">OK</a>&nbsp;<a data-wysihtml5-dialog-action="cancel">Cancel</a>
+    </div>
+   
+    <!-- Insert video dialog -->
     <div data-wysihtml5-dialog="insertVideo" style="display: none;">
       <label>
-        Video:
+        Video source:
         <input data-wysihtml5-dialog-field="src" value="http://player.vimeo.com/video/29413609?portrait=0&amp;color=ff9933" class="text">        
       </label>
       <label>
