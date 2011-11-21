@@ -313,7 +313,9 @@ var wysihtml5ParserRules = {
         "input": {
             "remove": 1
         },
-        "table": {},
+        "table": {
+            "set_class": "wysiwyg-font-size-larger"
+        },
         "keygen": {
             "remove": 1
         },

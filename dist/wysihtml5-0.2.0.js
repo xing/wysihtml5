@@ -4808,6 +4808,15 @@ wysihtml5.dom.parse = (function() {
         return mapping[String(attributeValue).toLowerCase()];
       };
     })(),
+
+    size_table: (function() {
+      var mapping = {
+        wide:   "wysiwyg-table-wide"
+      };
+      return function(attributeValue) {
+        return mapping[String(attributeValue).toLowerCase()];
+      };
+    })(),
     
     size_font: (function() {
       var mapping = {
