@@ -119,7 +119,11 @@
 }
 
 .wysiwyg-table-wide {
-  width: 100%;
+  width: 689px;
+}
+
+.wysiwyg-table-wide td {
+  width:345px;
 }
 
 .wysiwyg-float-left {
