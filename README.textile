@@ -141,8 +141,15 @@ A compatibility table for rich text query commands can be found here:
 A pure native rich text editor with HTML validator and live source preview is here:
 "http://tifftiff.de/contenteditable/editor.html":http://tifftiff.de/contenteditable/editor.html
 
+h2. Modifications by me 
+
+Now, in the toolbar you can add an embed iframe video with two differentes ways. You can insert the source video and its size (width + height) or put its all embed code directly using the option *insert embed code*.
+
+*IMPORTANT NOTE:* I have to split each new code to its right place to do a make complete and succesfully (and tested). Right now, the modified code is in wysithml5-0.2.0.js and the example about how to use it in advanced.html
+
 h2. Contributors
 
 * "@tiff":https://github.com/tiff
 * "@ingochao":https://github.com/ingochao
 * "@uwe":https://github.com/uwe
+* "@raulbarrosoleon":http://www.raulbarroso.com

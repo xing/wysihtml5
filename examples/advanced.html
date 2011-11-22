@@ -52,6 +52,11 @@
     font-family: Verdana;
     font-size: 11px;
   }
+
+  textarea.text{
+    width:827px;
+    height:80px;
+  }
   
   textarea:focus {
     color: black;
@@ -89,13 +94,14 @@
     <a data-wysihtml5-command="italic" title="CTRL+I">italic</a> |
     <a data-wysihtml5-command="createLink">insert link</a> |
     <a data-wysihtml5-command="insertImage">insert image</a> |
+    <a data-wysihtml5-command="insertVideo">insert video</a> |
+    <a data-wysihtml5-command="insertEmbedVideo">insert embed video</a> |
+    <a data-wysihtml5-command="insertTable">insert table</a> |
+    <a data-wysihtml5-command="insertLineBreak">insert break line</a> |    
     <a data-wysihtml5-command="formatBlock" data-wysihtml5-command-value="h1">h1</a> |
     <a data-wysihtml5-command="formatBlock" data-wysihtml5-command-value="h2">h2</a> |
     <a data-wysihtml5-command="insertUnorderedList">insertUnorderedList</a> |
     <a data-wysihtml5-command="insertOrderedList">insertUnorderedList</a> |
-    <a data-wysihtml5-command="foreColor" data-wysihtml5-command-value="red">red</a> |
-    <a data-wysihtml5-command="foreColor" data-wysihtml5-command-value="green">green</a> |
-    <a data-wysihtml5-command="foreColor" data-wysihtml5-command-value="blue">blue</a> |
     <a data-wysihtml5-command="insertSpeech">speech</a>
     <a data-wysihtml5-action="change_view">switch to html view</a>
     
@@ -106,7 +112,7 @@
       </label>
       <a data-wysihtml5-dialog-action="save">OK</a>&nbsp;<a data-wysihtml5-dialog-action="cancel">Cancel</a>
     </div>
-    
+    <!-- Insert image dialog -->
     <div data-wysihtml5-dialog="insertImage" style="display: none;">
       <label>
         Image:
@@ -122,7 +128,46 @@
       </label>
       <a data-wysihtml5-dialog-action="save">OK</a>&nbsp;<a data-wysihtml5-dialog-action="cancel">Cancel</a>
     </div>
-    
+    <!-- Insert embed video code dialog -->
+    <div data-wysihtml5-dialog="insertEmbedVideo" style="display: none;">
+      <label>
+        Video embed code:
+        <!-- we could add the following to our new textarea: <iframe src="http://player.vimeo.com/video/13728146?title=0&amp;byline=0&amp;portrait=0&amp;color=346F87" width="400" height="225" frameborder="0" webkitAllowFullScreen mozallowfullscreen allowFullScreen></iframe> -->
+        <textarea data-wysihtml5-dialog-field="src" class="text"></textarea>
+      </label>
+      <a data-wysihtml5-dialog-action="save">OK</a>&nbsp;<a data-wysihtml5-dialog-action="cancel">Cancel</a>
+    </div>
+   
+    <!-- Insert video dialog -->
+    <div data-wysihtml5-dialog="insertVideo" style="display: none;">
+      <label>
+        Video source:
+        <input data-wysihtml5-dialog-field="src" value="" class="text">        
+      </label>
+      <label>
+        Width:
+        <input data-wysihtml5-dialog-field="width" value="400" class="text">
+      </label>
+      <label>
+        Height:
+        <input data-wysihtml5-dialog-field="height" value="225" class="text">        
+      </label>
+      <a data-wysihtml5-dialog-action="save">OK</a>&nbsp;<a data-wysihtml5-dialog-action="cancel">Cancel</a>
+    </div>
+
+       
+    <!-- Insert video dialog -->
+   <!--  <div data-wysihtml5-dialog="insertTable" style="display: none;">
+      <label>
+        How many rows:
+        <input data-wysihtml5-dialog-field="rows" value="1" class="text">        
+      </label>
+      <label>
+        How many cells:
+        <input data-wysihtml5-dialog-field="cells" value="1" class="text">
+      </label>
+      <a data-wysihtml5-dialog-action="save">OK</a>&nbsp;<a data-wysihtml5-dialog-action="cancel">Cancel</a>
+    </div> -->
   </div>
   <textarea id="textarea" placeholder="Enter text ..."></textarea>
   <br><input type="reset" value="Reset form!">
@@ -154,13 +199,27 @@
     .observe("blur", function() {
       log.innerHTML += "<div>blur</div>";
     })
-    .observe("change", function() {
-      log.innerHTML += "<div>change</div>";
+    .observe("change:composer", function() {
+      log.innerHTML += "<div>change rich view</div>";
     })
-    .observe("paste", function() {
-      log.innerHTML += "<div>paste</div>";
+    .observe("change:textarea", function() {
+      log.innerHTML += "<div>change source view</div>";
+    })    
+    .observe("paste:composer", function() {
+      log.innerHTML += "<div>paste rich view</div>";
     })
+    .observe("paste:textarea", function() {
+      log.innerHTML += "<div>paste source view</div>";
+    })    
+    .observe("destroy:composer", function() {
+      log.innerHTML += "<div>destroy</div>";
+    })     
     .observe("newword:composer", function() {
       log.innerHTML += "<div>newword:composer</div>";
     });
+
+
+
+
+
 </script>

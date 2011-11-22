@@ -80,7 +80,8 @@ var wysihtml5ParserRules = {
         "wysiwyg-text-align-center": 1,
         "wysiwyg-font-size-xx-large": 1,
         "wysiwyg-color-teal": 1,
-        "wysiwyg-float-left": 1
+        "wysiwyg-float-left": 1,
+        "wysiwyg-table-wide": 1
     },
     /**
      * Tag list
@@ -180,7 +181,15 @@ var wysihtml5ParserRules = {
             "rename_tag": "span"
         },
         "iframe": {
-            "remove": 1
+            "check_attributes": {
+                "src":"url",
+                "width":"numbers",
+                "height":"numbers"                
+            },
+            "set_attributes":{
+                "frameborder":"0"                
+            }
+
         },
         "figcaption": {
             "rename_tag": "div"
@@ -305,7 +314,9 @@ var wysihtml5ParserRules = {
         "input": {
             "remove": 1
         },
-        "table": {},
+        "table": {
+            "set_class": "wysiwyg-table-wide"
+        },
         "keygen": {
             "remove": 1
         },

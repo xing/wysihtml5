@@ -226,7 +226,6 @@ var rangy = (function() {
         this.initialized = false;
         this.supported = false;
     }
-
     Module.prototype.fail = function(reason) {
         this.initialized = true;
         this.supported = false;
@@ -4809,6 +4808,15 @@ wysihtml5.dom.parse = (function() {
         return mapping[String(attributeValue).toLowerCase()];
       };
     })(),
+
+    size_table: (function() {
+      var mapping = {
+        wide:   "wysiwyg-table-wide"
+      };
+      return function(attributeValue) {
+        return mapping[String(attributeValue).toLowerCase()];
+      };
+    })(),
     
     size_font: (function() {
       var mapping = {
@@ -5737,6 +5745,14 @@ wysihtml5.quirks.cleanPastedHTML = (function() {
     },
 
     /**
+     * Split embed object
+     */
+    getVideoObject: function(code) {
+      var videoObject;
+      return videoObject;
+    },
+
+    /**
      * Get the node which contains the selection
      *
      * @param {Object} document Document object of the context where to select
@@ -6039,7 +6055,7 @@ wysihtml5.quirks.cleanPastedHTML = (function() {
           win       = doc.defaultView || doc.parentWindow,
           selection = rangy.getSelection(win);
       return selection.setSingleRange(range);
-    }
+    }    
   };
   
 })(wysihtml5);
@@ -7349,6 +7365,8 @@ wysihtml5.views.Textarea = wysihtml5.views.View.extend(
  *        // do something
  *      });
  *    </script>
+ *
+ *    It works with every pair (insertVideo in advanced.html)
  */
 (function(wysihtml5) {
   var dom                     = wysihtml5.dom,
@@ -8555,7 +8573,155 @@ wysihtml5.commands = {
       return image && image.src;
     }
   };
-})(wysihtml5);(function(wysihtml5) {
+})(wysihtml5);
+
+/**
+    Insert video
+**/
+(function(wysihtml5) {
+  var NODE_NAME = "IFRAME";
+  
+  wysihtml5.commands.insertVideo = {
+    /**
+     * Inserts an <img>
+     * If selection is already an image link, it removes it
+     * 
+     * @example
+     *    // either ...
+     *    wysihtml5.commands.insertVideo.exec(element, "insertVideo", "http://www.google.de/logo.jpg");
+     *    // ... or ...
+     *    wysihtml5.commands.insertVideo.exec(element, "insertVideo", { src: "http://www.google.de/logo.jpg", width: "400"... });
+     */
+    exec: function(element, command, value) {
+      value = typeof(value) === "object" ? value : { src: value };
+ // valueObject { src="http://player.vimeo.com...portrait=0&color=ff9933",  width="400",  height="225"}
+      var doc   = element.ownerDocument,
+          video = this.state(element),
+          i,
+          parent;
+
+      if (video) {
+        // Video already selected, set the caret before it and delete it
+        wysihtml5.selection.setBefore(video);
+        parent = video.parentNode;
+        parent.removeChild(video);
+
+        // and it's parent <a> too if it hasn't got any other relevant child nodes
+        wysihtml5.dom.removeEmptyTextNodes(parent);
+        if (parent.nodeName === "A" && !parent.firstChild) {
+          wysihtml5.selection.setAfter(parent);
+          parent.parentNode.removeChild(parent);
+        }
+
+        // firefox and ie sometimes don't remove the video handles, even though the image got removed
+        wysihtml5.quirks.redraw(element);
+        return;
+      }
+
+      video = doc.createElement(NODE_NAME);
+
+      for (i in value) {
+        video[i] = value[i];
+      }
+
+      wysihtml5.selection.insertNode(video);
+      wysihtml5.selection.setAfter(video);
+    },
+
+    state: function(element) {
+      var doc = element.ownerDocument,
+          selectedNode,
+          text,
+          videosInSelection;
+
+      if (!wysihtml5.dom.hasElementWithTagName(doc, NODE_NAME)) {
+        return false;
+      }
+
+      selectedNode = wysihtml5.selection.getSelectedNode(doc);
+      if (!selectedNode) {
+        return false;
+      }
+
+      if (selectedNode.nodeName === NODE_NAME) {
+        // This works perfectly in IE
+        return selectedNode;
+      }
+
+      if (selectedNode.nodeType !== wysihtml5.ELEMENT_NODE) {
+        return false;
+      }
+
+      text = wysihtml5.selection.getText(doc);
+      text = wysihtml5.lang.string(text).trim();
+      if (text) {
+        return false;
+      }
+
+      videosInSelection = wysihtml5.selection.getNodes(doc, wysihtml5.ELEMENT_NODE, function(node) {
+        return node.nodeName === "IFRAME";
+      });
+
+      if (videosInSelection.length !== 1) {
+        return false;
+      }
+
+      return videosInSelection[0];
+    },
+
+    value: function(element) {
+      var video = this.state(element);
+      return video && video.src;
+    }
+  };
+})(wysihtml5);
+
+
+/**
+    Insert Embed video
+**/
+(function(wysihtml5) {
+  var NODE_NAME = "IFRAME";
+  
+  wysihtml5.commands.insertEmbedVideo = {
+    /**     
+     * @example
+     *    // either ...
+     *    wysihtml5.commands.insertVideo.exec(element, "insertVideo", "http://www.google.de/logo.jpg");
+     *    // ... or ...
+     *    wysihtml5.commands.insertVideo.exec(element, "insertVideo", { src: "http://www.google.de/logo.jpg", width: "400"... });
+     */
+    exec: function(element, command, value) {
+      var code = value.src;
+      value = Object.create({
+                  'src' : wysihtml5.commands.getAttributeValue.exec(code,"src"),
+                  'width': wysihtml5.commands.getAttributeValue.exec(code,"width"),
+                  'height': wysihtml5.commands.getAttributeValue.exec(code,"height")
+              });
+
+      wysihtml5.commands.insertVideo.exec(element, command, value);
+    },
+
+    state: function(element) {
+      wysihtml5.commands.insertVideo.state(element);
+    },
+
+    value: function(element) {
+      wysihtml5.commands.insertVideo.value(element);
+    }
+  };
+})(wysihtml5);
+
+// This function parses a string code with each parameter that it's required
+(function(wysihtml5) {
+  wysihtml5.commands.getAttributeValue = {
+    exec: function (code,attr){
+      return code.substring(parseInt(code.indexOf(attr))+attr.length + 2,code.length).split("\" ")[0];
+    }  
+  };
+})(wysihtml5);
+
+(function(wysihtml5) {
   var undef,
       LINE_BREAK = "<br>" + (wysihtml5.browser.needsSpaceAfterLineBreak() ? " " : "");
   
@@ -8579,7 +8745,37 @@ wysihtml5.commands = {
       return undef;
     }
   };
-})(wysihtml5);(function(wysihtml5) {
+})(wysihtml5);
+
+
+
+(function(wysihtml5) {
+  var undef,
+      TABLE_HTML = '<table><tr><td>COLUMN1</td><td>COLUMN2</td></tr></table>';
+  
+  wysihtml5.commands.insertTable = {
+    exec: function(element, command, value) {
+      if (wysihtml5.commands.support(element, command)) {
+        element.ownerDocument.execCommand(command, false, null);
+        if (!wysihtml5.browser.autoScrollsToCaret()) {
+          wysihtml5.selection.scrollIntoView(element);
+        }
+      } else {
+        wysihtml5.commands.exec(element, "insertHTML", TABLE_HTML);
+      }
+    },
+
+    state: function() {
+      return false;
+    },
+
+    value: function() {
+      return undef;
+    }
+  };
+})(wysihtml5);
+
+(function(wysihtml5) {
   var undef;
   
   wysihtml5.commands.insertOrderedList = {
