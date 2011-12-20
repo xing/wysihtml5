@@ -191,7 +191,7 @@
             // traverse the dom to get the correct element.
             target = target.parentNode,
             action = target.getAttribute("data-wysihtml5-action");
-            if(link.nodeName.toLowerCase() == 'html'){
+            if(target.nodeName.toLowerCase() == 'html'){
                 try{
                     console.log('The attribute "data-wysihtml5-action" was not found on the target or its parents:', event.target);
                 }
