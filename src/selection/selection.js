@@ -139,6 +139,14 @@
 
       this.setSelection(range);
     },
+    
+    /**
+     * Split embed object
+     */
+    getVideoObject: function(code) {
+      var videoObject;
+      return videoObject;
+    },
 
     /**
      * Get the node which contains the selection

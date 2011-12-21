@@ -63,6 +63,9 @@ JS_FILES = src/wysihtml5.js \
   src/commands/insertLineBreak.js \
   src/commands/insertOrderedList.js \
   src/commands/insertUnorderedList.js \
+  src/commands/insertVideo.js \
+  src/commands/insertEmbedVideo.js \
+  src/commands/getAttributeValue.js \
   src/commands/italic.js \
   src/commands/justifyCenter.js \
   src/commands/justifyLeft.js \

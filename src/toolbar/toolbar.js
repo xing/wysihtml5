@@ -166,13 +166,39 @@
       dom.delegate(container, "[data-wysihtml5-command]", "click", function(event) {
         var link          = event.target,
             command       = link.getAttribute("data-wysihtml5-command"),
-            commandValue  = link.getAttribute("data-wysihtml5-command-value");
+            commandValue;
+	while(command === null){
+            // traverse the dom to get the correct element.
+            link    = link.parentNode;
+            command = link.getAttribute("data-wysihtml5-command");
+            if(link.nodeName.toLowerCase() == 'html'){ // stop at the top
+                try{
+                    console.log('The attribute "data-wysihtml5-command" was not found on the target or its parents:', event.target);
+                }
+                catch(e){};
+                break;
+            }
+        }
+        commandValue  = link.getAttribute("data-wysihtml5-command-value");
         that.execCommand(command, commandValue);
         event.preventDefault();
       });
 
       dom.delegate(container, "[data-wysihtml5-action]", "click", function(event) {
-        var action = event.target.getAttribute("data-wysihtml5-action");
+        var target = event.target;
+	    action = target.getAttribute("data-wysihtml5-action");
+	while(action === null){
+            // traverse the dom to get the correct element.
+            target = target.parentNode,
+            action = target.getAttribute("data-wysihtml5-action");
+            if(target.nodeName.toLowerCase() == 'html'){
+                try{
+                    console.log('The attribute "data-wysihtml5-action" was not found on the target or its parents:', event.target);
+                }
+                catch(e){};
+                break;
+            }
+        }
         that.execAction(action);
         event.preventDefault();
       });
