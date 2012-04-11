@@ -156,13 +156,21 @@
     // Therefore we've to recalculate style onresize
     if (!wysihtml5.browser.hasCurrentStyleProperty()) {
       dom.observe(win, "resize", function() {
-        var originalDisplayStyle = dom.getStyle("display").from(textareaElement);
+        // Remove event listener if composer doesn't exist anymore
+        if(!dom.contains(document.documentElement, that.iframe)) {
+					win.removeEventListener("resize", arguments.callee);
+					return;
+				}
+        var originalDisplayStyle = dom.getStyle("display").from(textareaElement),
+          originalComposerDisplayStyle = dom.getStyle("display").from(that.iframe);
         textareaElement.style.display = "";
+        that.iframe.style.display = "none";
         dom.copyStyles(RESIZE_STYLE)
           .from(textareaElement)
           .to(that.iframe)
           .andTo(that.focusStylesHost)
           .andTo(that.blurStylesHost);
+        that.iframe.style.display = originalComposerDisplayStyle;
         textareaElement.style.display = originalDisplayStyle;
       });
     }
