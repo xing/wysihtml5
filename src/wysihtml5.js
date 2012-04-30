@@ -28,6 +28,7 @@ var wysihtml5 = {
   TEXT_NODE:    3,
   
   BACKSPACE_KEY:  8,
+  TAB_KEY:        9,
   ENTER_KEY:      13,
   ESCAPE_KEY:     27,
   SPACE_KEY:      32,

@@ -142,6 +142,37 @@
       }
     });
 
+    // --------- Tab in/outdent on lists ---------
+    dom.observe(element, "keydown", function(event) {
+      // first check if tab was pressed
+      if (event.keyCode == wysihtml5.TAB_KEY) {
+        var target  = that.selection.getSelectedNode(true),
+            parent  = target.parentNode;
+
+        // if the cursor is near a list,
+        if (parent.nodeName.match(/(OL|UL|LI)/)) {
+
+          // and shift is down,
+          if (event.shiftKey) {
+            // outdent the list
+            that.commands.exec("Outdent");
+          } else {
+            // otherwise, indent/create another list
+            that.commands.exec("Indent");
+          }
+
+          // and stop the editor from losing focus
+          event.preventDefault();
+
+          // if tab was pressed elsewhere without being near a list, let it through (usually to a submit button)
+          // otherwise if shift+tab is pressed,
+        } else if (event.shiftKey) {
+          // swallow it so focus isn't lost.
+          event.preventDefault();
+        }
+      }
+    });
+
     // --------- Make sure that when pressing backspace/delete on selected images deletes the image and it's anchor ---------
     dom.observe(element, "keydown", function(event) {
       var target  = that.selection.getSelectedNode(true),
