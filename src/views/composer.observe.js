@@ -160,6 +160,11 @@
           } else {
             // otherwise, indent/create another list
             that.commands.exec("Indent");
+
+            // the editor seems to freak out and add block quotes twice after one level of
+            // indentation if there's nothing contained inside of what's being indented.
+            // handle this by inserting an invisible space in to calm it down.
+            that.selection.insertNode(that.doc.createTextNode(wysihtml5.INVISIBLE_SPACE));
           }
 
           // and stop the editor from losing focus
