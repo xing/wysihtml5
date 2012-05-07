@@ -55,7 +55,9 @@
     // Whether the composer should allow the user to manually resize images, tables etc.
     allowObjectResizing:  true,
     // Whether the rich text editor should be rendered on touch devices (wysihtml5 >= 0.3.0 comes with basic support for iOS 5)
-    supportTouchDevices:  true
+    supportTouchDevices:  true,
+    // What tags to allow Tab indenting/outdenting on
+    indentMatcher: /(OL|UL|LI)/
   };
   
   wysihtml5.Editor = wysihtml5.lang.Dispatcher.extend(

@@ -142,15 +142,16 @@
       }
     });
 
-    // --------- Tab in/outdent on lists ---------
+    // --------- Tab in/outdent ---------
     dom.observe(element, "keydown", function(event) {
+
       // first check if tab was pressed
       if (event.keyCode == wysihtml5.TAB_KEY) {
-        var target  = that.selection.getSelectedNode(true),
-            parent  = target.parentNode;
+        var target = that.selection.getSelectedNode(true),
+            parent = target.parentNode;
 
-        // if the cursor is near a list,
-        if (parent.nodeName.match(/(OL|UL|LI)/)) {
+        // if the cursor is near the matched elements,
+        if (parent.nodeName.match(that.config.indentMatcher)) {
 
           // and shift is down,
           if (event.shiftKey) {
@@ -168,6 +169,18 @@
           // otherwise if shift+tab is pressed,
         } else if (event.shiftKey) {
           // swallow it so focus isn't lost.
+          event.preventDefault();
+        }
+      }
+
+      // backspace key outdents when on BLOCKQUOTE
+      if (event.keyCode == wysihtml5.BACKSPACE_KEY) {
+        var target = that.selection.getSelectedNode(true),
+            parent = target.parentNode;
+
+        // outdent only if we're at the start of a line and we're in a BLOCKQUOTE
+        if (parent.nodeName == "BLOCKQUOTE" && that.selection.getRange().startOffset == 0) {
+          that.commands.exec("Outdent");
           event.preventDefault();
         }
       }
