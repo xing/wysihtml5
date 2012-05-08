@@ -181,10 +181,10 @@
       // backspace key outdents when on BLOCKQUOTE
       if (event.keyCode == wysihtml5.BACKSPACE_KEY) {
         var target = that.selection.getSelectedNode(true),
-            parent = target.parentNode;
+            indent = wysihtml5.dom.getParentElement(target, { nodeName: "BLOCKQUOTE" });
 
-        // outdent only if we're at the start of a line and we're in a BLOCKQUOTE
-        if (parent.nodeName == "BLOCKQUOTE" && that.selection.getRange().startOffset == 0) {
+        // outdent only if we're at the start of a line and we're nested in a BLOCKQUOTE
+        if (indent && indent.nodeName == "BLOCKQUOTE" && that.selection.getRange().startOffset == 0) {
           that.commands.exec("Outdent");
           event.preventDefault();
         }
