@@ -142,6 +142,55 @@
       }
     });
 
+    // --------- Tab in/outdent ---------
+    dom.observe(element, "keydown", function(event) {
+
+      // first check if tab was pressed
+      if (event.keyCode == wysihtml5.TAB_KEY) {
+        var target = that.selection.getSelectedNode(true),
+            parent = target.parentNode;
+
+        // if the cursor is near the matched elements,
+        if (parent.nodeName.match(that.config.indentMatcher)) {
+
+          // and shift is down,
+          if (event.shiftKey) {
+            // outdent the list
+            that.commands.exec("Outdent");
+          } else {
+            // the editor seems to freak out and add block quotes twice after one level of
+            // indentation if there's nothing contained inside of what's being indented.
+            // handle this by inserting an invisible space in to calm it down.
+            that.selection.insertNode(that.doc.createTextNode(wysihtml5.INVISIBLE_SPACE));
+
+            // otherwise, indent/create another list
+            that.commands.exec("Indent");
+          }
+
+          // and stop the editor from losing focus
+          event.preventDefault();
+
+          // if tab was pressed elsewhere without being near a list, let it through (usually to a submit button)
+          // otherwise if shift+tab is pressed,
+        } else if (event.shiftKey) {
+          // swallow it so focus isn't lost.
+          event.preventDefault();
+        }
+      }
+
+      // backspace key outdents when on BLOCKQUOTE
+      if (event.keyCode == wysihtml5.BACKSPACE_KEY) {
+        var target = that.selection.getSelectedNode(true),
+            indent = wysihtml5.dom.getParentElement(target, { nodeName: "BLOCKQUOTE" });
+
+        // outdent only if we're at the start of a line and we're nested in a BLOCKQUOTE
+        if (indent && indent.nodeName == "BLOCKQUOTE" && that.selection.getRange().startOffset == 0) {
+          that.commands.exec("Outdent");
+          event.preventDefault();
+        }
+      }
+    });
+
     // --------- Make sure that when pressing backspace/delete on selected images deletes the image and it's anchor ---------
     dom.observe(element, "keydown", function(event) {
       var target  = that.selection.getSelectedNode(true),
