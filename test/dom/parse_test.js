@@ -151,6 +151,45 @@ if (wysihtml5.browser.supported()) {
     );
   });
 
+  test("Attribute check of booleans", function() {
+    var rules = {
+      tags: {
+        select: true,
+        input: {
+          check_attributes: {
+            type: "alt",
+            autofocus: "boolean",
+            checked: "boolean"
+          }
+        },
+        option: {
+          check_attributes: {
+            selected: "boolean"
+          }
+        }
+      }
+    };
+
+    alert(this.sanitize(
+        '<input type="text" autofocus="on">' +
+        '<input type="checkbox" checked="checked">' + 
+        '<select><option>A</option><option selected="yes">B</option></select>',
+      rules
+    ));
+
+    this.equal(
+      this.sanitize(
+        '<input type="text" autofocus="on">' +
+        '<input type="checkbox" checked="checked">' + 
+        '<select><option>A</option><option selected="yes">B</option></select>',
+        rules
+      ),
+      '<input type="text" autofocus="">' +
+      '<input type="checkbox" checked="">' + 
+      '<select><option>A</option><option selected="">B</option></select>'
+    );
+  });
+
   test("Bug in IE8 where invalid html causes duplicated content", function() {
     var rules = {
       tags: { p: true, span: true, div: true }
