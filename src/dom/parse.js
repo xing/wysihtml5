@@ -233,7 +233,7 @@ wysihtml5.dom.parse = (function() {
         if (!method) {
           continue;
         }
-        newAttributeValue = method(_getAttribute(oldNode, attributeName));
+        newAttributeValue = method(_getAttribute(oldNode, attributeName), attributeName);
         if (typeof(newAttributeValue) === "string") {
           attributes[attributeName] = newAttributeValue;
         }
@@ -402,6 +402,17 @@ wysihtml5.dom.parse = (function() {
           return "";
         }
         return attributeValue.replace(REG_EXP, "");
+      };
+    })(),
+
+    boolean: (function() {
+      var TRUE_REG_EXP = /^(on|true|yes)$/gi;
+      return function(attributeValue, attributeName) {
+        if(attributeValue && (attributeValue.match(TRUE_REG_EXP) || attributeValue.toLowerCase() === attributeName)) {
+          return "";
+        } else {
+          return null;
+        }
       };
     })(),
     
