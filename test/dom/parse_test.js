@@ -170,13 +170,6 @@ if (wysihtml5.browser.supported()) {
       }
     };
 
-    alert(this.sanitize(
-        '<input type="text" autofocus="on">' +
-        '<input type="checkbox" checked="checked">' + 
-        '<select><option>A</option><option selected="yes">B</option></select>',
-      rules
-    ));
-
     this.equal(
       this.sanitize(
         '<input type="text" autofocus="on">' +
