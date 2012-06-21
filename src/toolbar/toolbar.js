@@ -161,8 +161,9 @@
         }).on(links[i]);
       }
 
-      // Needed for opera
+      // Needed for opera and chrome
       dom.delegate(container, "[data-wysihtml5-command]", "mousedown", function(event) { event.preventDefault(); });
+      dom.delegate(container, "[data-wysihtml5-action]", "mousedown", function(event) { event.preventDefault(); });
       
       dom.delegate(container, "[data-wysihtml5-command]", "click", function(event) {
         var link          = this,
