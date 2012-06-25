@@ -3,6 +3,7 @@
       api               = wysihtml5.dom;
 
   api.addClass = function(element, className) {
+    var classList;
     if (supportsClassList && ((classList = element.classList) != null)) {
       return classList.add(className);
     }
@@ -13,6 +14,7 @@
   };
 
   api.removeClass = function(element, className) {
+    var classList;
     if (supportsClassList && ((classList = element.classList) != null)) {
       return classList.remove(className);
     }
@@ -21,6 +23,7 @@
   };
 
   api.hasClass = function(element, className) {
+    var classList;
     if (supportsClassList && ((classList = element.classList) != null)) {
       return classList.contains(className);
     }
