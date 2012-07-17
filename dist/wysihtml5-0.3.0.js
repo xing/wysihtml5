@@ -4888,7 +4888,7 @@ wysihtml5.dom.parse = (function() {
         nodeName = "div";
       }
     }
-
+    
     if (nodeName in tagRules) {
       rule = tagRules[nodeName];
       method = _checkRules(oldNode, rule);
