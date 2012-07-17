@@ -1,6 +1,6 @@
 /**
  * Full HTML5 compatibility rule set
- * These rules define which tags and CSS classes are supported and which tags should be specially treated.
+ * These rules define which tags and css classes are supported and which tags should be specially treated.
  *
  * Examples based on this rule set:
  *
@@ -18,7 +18,7 @@
  *
  *    <marquee>foo</marquee>
  *    ... becomes ...
- *    <span>foo</span>
+ *    <span>foo</marquee>
  *
  *    foo <br clear="both"> bar
  *    ... becomes ...
@@ -35,7 +35,7 @@
 var wysihtml5ParserRules = {
     /**
      * CSS Class white-list
-     * Following CSS classes won't be removed when parsed by the wysihtml5 HTML parser
+     * Following css classes won't be removed when parsed by the wysihtml5 html parser
      */
     "classes": {
         "wysiwyg-clear-both": 1,
@@ -71,483 +71,381 @@ var wysihtml5ParserRules = {
         "wysiwyg-text-align-center": 1,
         "wysiwyg-text-align-justify": 1,
         "wysiwyg-text-align-left": 1,
-        "wysiwyg-text-align-right": 1
+        "wysiwyg-text-align-right": 1,
     },
     /**
      * Tag list
      *
-     * The following options are available:
+     * Following options are available:
      *
      *    - add_class:        converts and deletes the given HTML4 attribute (align, clear, ...) via the given method to a css class
      *                        The following methods are implemented in wysihtml5.dom.parse:
      *                          - align_text:  converts align attribute values (right/left/center/justify) to their corresponding css class "wysiwyg-text-align-*")
-     *                            <p align="center">foo</p> ... becomes ... <p> class="wysiwyg-text-align-center">foo</p>
+                                  <p align="center">foo</p> ... becomes ... <p> class="wysiwyg-text-align-center">foo</p>
      *                          - clear_br:    converts clear attribute values left/right/all/both to their corresponding css class "wysiwyg-clear-*"
      *                            <br clear="all"> ... becomes ... <br class="wysiwyg-clear-both">
      *                          - align_img:    converts align attribute values (right/left) on <img> to their corresponding css class "wysiwyg-float-*"
      *                          
-     *    - remove:             removes the element and its content
+     *    - remove:             removes the element and it's content
      *
      *    - rename_tag:         renames the element to the given tag
+     *    
+     *    - extract:            extract the content of the tag and it to the parent node
+     *
+     *    - keep:               do nothing (same as 1 or {})
+     *
+     *    conditioning with if and ifnot: you can have all the above actions execute on conditions of specific attributes of the node
+     *            
+     *                          syntax: Object { option(remove|rename_tag|extract|keep) : {
+     *                                                  "if"    : { nodeAttribute : regExpMatchPattern }
+     *                                                  "ifnot" : { nodeAttribute : regExpMatchPattern }
+     *                                           }
+     *                                         }
+     *                          example: "extract" : {
+     *                                                 "ifnot" : { "class" : "^(columnised|column)$" }
+     *                                               }                          
      *
      *    - set_class:          adds the given class to the element (note: make sure that the class is in the "classes" white list above)
      *
      *    - set_attributes:     sets/overrides the given attributes
      *
      *    - check_attributes:   checks the given HTML attribute via the given method
-     *                            - url:            allows only valid urls (starting with http:// or https://)
-     *                            - src:            allows something like "/foobar.jpg", "http://google.com", ...
-     *                            - href:           allows something like "mailto:bert@foo.com", "http://google.com", "/foobar.jpg"
-     *                            - alt:            strips unwanted characters. if the attribute is not set, then it gets set (to ensure valid and compatible HTML)
+     *                            - url:      checks whether the given string is an url, deletes the attribute if not
+     *                            - alt:      strips unwanted characters. if the attribute is not set, then it gets set (to ensure valid and compatible HTML)
      *                            - numbers:  ensures that the attribute only contains numeric characters
+     *                            - { func: yourGlobalFunctionName }: calls the global function with (attr, node) as values; return non-string to remove attribute
      */
     "tags": {
-        "tr": {
-            "add_class": {
-                "align": "align_text"
-            }
+        "a": {
+            "check_attributes": {
+                "href"   : "url",
+                "rel"    : { 'func' : 'checkLinkRelation' },
+                "target" : { 'func' : 'checkLinkTarget' }
+            },
         },
-        "strike": {
-            "remove": 1
-        },
-        "form": {
-            "rename_tag": "div"
-        },
-        "rt": {
-            "rename_tag": "span"
-        },
-        "code": {},
+        "abbr": 1,
         "acronym": {
-            "rename_tag": "span"
+            "rename_tag": "abbr"
         },
-        "br": {
-            "add_class": {
-                "clear": "clear_br"
-            }
+        "address": {
+            "rename_tag": "p"
         },
-        "details": {
-            "rename_tag": "div"
-        },
-        "h4": {
-            "add_class": {
-                "align": "align_text"
-            }
-        },
-        "em": {},
-        "title": {
+        "applet": {
             "remove": 1
-        },
-        "multicol": {
-            "rename_tag": "div"
-        },
-        "figure": {
-            "rename_tag": "div"
-        },
-        "xmp": {
-            "rename_tag": "span"
-        },
-        "small": {
-            "rename_tag": "span",
-            "set_class": "wysiwyg-font-size-smaller"
         },
         "area": {
             "remove": 1
         },
-        "time": {
-            "rename_tag": "span"
+        "article": {
+            "rename_tag": "p"
         },
-        "dir": {
-            "rename_tag": "ul"
+        "aside": {
+            "extract": 1
         },
-        "bdi": {
-            "rename_tag": "span"
-        },
-        "command": {
+        "audio": {
             "remove": 1
         },
-        "ul": {},
-        "progress": {
-            "rename_tag": "span"
-        },
-        "dfn": {
-            "rename_tag": "span"
-        },
-        "iframe": {
+        "b": 1,
+        "base": {
             "remove": 1
-        },
-        "figcaption": {
-            "rename_tag": "div"
-        },
-        "a": {
-            "check_attributes": {
-                "href": "href"
-            },
-            "set_attributes": {
-                "rel": "nofollow",
-                "target": "_blank"
-            }
-        },
-        "img": {
-            "check_attributes": {
-                "width": "numbers",
-                "alt": "alt",
-                "src": "src",
-                "height": "numbers"
-            },
-            "add_class": {
-                "align": "align_img"
-            }
-        },
-        "rb": {
-            "rename_tag": "span"
-        },
-        "footer": {
-            "rename_tag": "div"
-        },
-        "noframes": {
-            "remove": 1
-        },
-        "abbr": {
-            "rename_tag": "span"
-        },
-        "u": {},
-        "bgsound": {
-            "remove": 1
-        },
-        "sup": {
-            "rename_tag": "span"
-        },
-        "address": {
-            "rename_tag": "div"
         },
         "basefont": {
             "remove": 1
         },
-        "nav": {
-            "rename_tag": "div"
+        "bdi": 1,
+        "bdo": 1,
+        "bgsound": {
+            "remove": 1
+        },
+        "big": {
+            "rename_tag": "strong"
+        },
+        "blink": {
+            "rename_tag": "strong"
+        },
+        "blockquote": {
+            "rename_tag": "p"
+        },
+        "body": {
+            "extract": 1
+        },
+        "br": 1,
+        "button": { "remove": 1 },
+        "canvas": {
+            "remove": 1
+        },
+        "caption": {
+            "rename_tag": "p",
+        },
+        "center": {
+            "rename_tag": "p",
+        },
+        "cite": 1,
+        "code": 1,
+        "col": {
+            "remove": 1
+        },
+        "colgroup": {
+            "remove": 1
+        },
+        "command": {
+            "remove": 1
+        },
+        "comment": {
+            "rename_tag": "p"
+        },
+        "datalist": {
+            "rename_tag": "ul"
+        },
+        "del": 1,
+        "details": {
+            "rename_tag": "p"
+        },
+        "device": {
+            "remove": 1
+        },
+        "dfn": 1,
+        "dir": {
+            "rename_tag": "ul"
+        },
+        "div": {
+            "extract" : {
+                "ifnot" : { "class" : "^(columnised|column)$" }
+            }
+        },
+        "dd": 1,
+        "dl": 1,
+        "dt": 1,
+        "em": 1,
+        "embed": {
+            "remove": 1
+        },
+        "fieldset": {
+            "extract": 1
+        },
+        "figcaption": {
+            "extract": 1
+        },
+        "figure": {
+            "extract": 1
+        },
+        "frameset": {
+            "remove": 1
+        },
+        "font": {
+            "extract": 1
+        },
+        "footer": {
+            "extract": 1
+        },
+        "form": {
+            "extract": 1
+        },
+        "frame": {
+            "remove": 1
         },
         "h1": {
-            "add_class": {
-                "align": "align_text"
-            }
+            "rename_tag": "h3"
+        },
+        "h2": {
+            "rename_tag": "h3"
+        },
+        "h3": 1,
+        "h4": 1,
+        "h5": 1,
+        "h6": 1,
+        "header": {
+            "rename_tag": "p"
         },
         "head": {
             "remove": 1
         },
-        "tbody": {
-            "add_class": {
-                "align": "align_text"
-            }
+        "hgroup": {
+            "extract": 1
         },
-        "dd": {
-            "rename_tag": "div"
-        },
-        "s": {
-            "rename_tag": "span"
-        },
-        "li": {},
-        "td": {
-            "check_attributes": {
-                "rowspan": "numbers",
-                "colspan": "numbers"
-            },
-            "add_class": {
-                "align": "align_text"
-            }
-        },
-        "object": {
-            "remove": 1
-        },
-        "div": {
-            "add_class": {
-                "align": "align_text"
-            }
-        },
-        "option": {
-            "rename_tag": "span"
-        },
-        "select": {
-            "rename_tag": "span"
+        "hr": 1,
+        "html": {
+            "extract": 1
         },
         "i": {},
-        "track": {
+        "iframe": {
+            "extract": 1
+        },
+        "img": {
             "remove": 1
         },
-        "wbr": {
-            "remove": 1
-        },
-        "fieldset": {
-            "rename_tag": "div"
-        },
-        "big": {
-            "rename_tag": "span",
-            "set_class": "wysiwyg-font-size-larger"
-        },
-        "button": {
-            "rename_tag": "span"
-        },
-        "noscript": {
-            "remove": 1
-        },
-        "svg": {
-            "remove": 1
-        },
-        "input": {
-            "remove": 1
-        },
-        "table": {},
-        "keygen": {
-            "remove": 1
-        },
-        "h5": {
-            "add_class": {
-                "align": "align_text"
-            }
-        },
-        "meta": {
-            "remove": 1
-        },
-        "map": {
-            "rename_tag": "div"
-        },
+        "input": { "remove": 1 },
+        "ins": 1,
         "isindex": {
             "remove": 1
         },
+        "keygen": {
+            "remove": 1
+        },
+        "kbd": 1,
+        "label": {
+            "extract": 1
+        },
+        "legend": {
+            "rename_tag": "strong"
+        },
+        "li": 1,
+        "link": {
+            "remove": 1
+        },
+        "listing": {
+            "extract": 1
+        },
+        "map": {
+            "remove": 1
+        },
         "mark": {
-            "rename_tag": "span"
-        },
-        "caption": {
-            "add_class": {
-                "align": "align_text"
-            }
-        },
-        "tfoot": {
-            "add_class": {
-                "align": "align_text"
-            }
-        },
-        "base": {
-            "remove": 1
-        },
-        "video": {
-            "remove": 1
-        },
-        "strong": {},
-        "canvas": {
-            "remove": 1
-        },
-        "output": {
-            "rename_tag": "span"
+            "rename_tag": "em"
         },
         "marquee": {
-            "rename_tag": "span"
+            "rename_tag": "em"
         },
-        "b": {},
+        "menu": {
+            "rename_tag": "ul"
+        },
+        "meta": { "remove": 1 },
+        "meter": {
+            "extract": 1
+        },
+        "multicol": {
+            "rename_tag": "div",
+            "add_class" : "columnised"
+        },
+        "nav": {
+            "rename_tag": "p"
+        },
+        "nextid": {
+            "remove": 1
+        },
+        "nobr": {
+            "rename_tag": "code"
+        },
+        "noembed": {
+            "remove": 1
+        },
+        "noframes": {
+            "remove": 1
+        },
+        "noscript": { "remove": 1 },
+        "object": {
+            "remove": 1
+        },
+        "ol": 1,
+        "optgroup": {
+            "rename_tag": "p"
+        },
+        "option": {
+            "rename_tag": "li"
+        },
+        "output": {
+            "rename_tag": "p"
+        },
+        "p": 1,
+        "param": {
+            "remove": 1
+        },
+        "plaintext": {
+            "rename_tag": "p"
+        },
+        "pre": {
+            "rename_tag": "p"
+        },
+        "progress": {
+            "remove": 1
+        },
         "q": {
             "check_attributes": {
                 "cite": "url"
             }
         },
-        "applet": {
-            "remove": 1
-        },
-        "span": {},
-        "rp": {
-            "rename_tag": "span"
-        },
-        "spacer": {
-            "remove": 1
-        },
-        "source": {
-            "remove": 1
-        },
-        "aside": {
-            "rename_tag": "div"
-        },
-        "frame": {
-            "remove": 1
-        },
-        "section": {
-            "rename_tag": "div"
-        },
-        "body": {
-            "rename_tag": "div"
-        },
-        "ol": {},
-        "nobr": {
-            "rename_tag": "span"
-        },
-        "html": {
-            "rename_tag": "div"
-        },
-        "summary": {
-            "rename_tag": "span"
-        },
-        "var": {
-            "rename_tag": "span"
-        },
-        "del": {
-            "remove": 1
-        },
-        "blockquote": {
-            "check_attributes": {
-                "cite": "url"
-            }
-        },
-        "style": {
-            "remove": 1
-        },
-        "device": {
-            "remove": 1
-        },
-        "meter": {
-            "rename_tag": "span"
-        },
-        "h3": {
-            "add_class": {
-                "align": "align_text"
-            }
-        },
-        "textarea": {
-            "rename_tag": "span"
-        },
-        "embed": {
-            "remove": 1
-        },
-        "hgroup": {
-            "rename_tag": "div"
-        },
-        "font": {
-            "rename_tag": "span",
-            "add_class": {
-                "size": "size_font"
-            }
-        },
-        "tt": {
-            "rename_tag": "span"
-        },
-        "noembed": {
-            "remove": 1
-        },
-        "thead": {
-            "add_class": {
-                "align": "align_text"
-            }
-        },
-        "blink": {
-            "rename_tag": "span"
-        },
-        "plaintext": {
-            "rename_tag": "span"
-        },
-        "xml": {
-            "remove": 1
-        },
-        "h6": {
-            "add_class": {
-                "align": "align_text"
-            }
-        },
-        "param": {
-            "remove": 1
-        },
-        "th": {
-            "check_attributes": {
-                "rowspan": "numbers",
-                "colspan": "numbers"
-            },
-            "add_class": {
-                "align": "align_text"
-            }
-        },
-        "legend": {
-            "rename_tag": "span"
-        },
-        "hr": {},
-        "label": {
-            "rename_tag": "span"
-        },
-        "dl": {
-            "rename_tag": "div"
-        },
-        "kbd": {
-            "rename_tag": "span"
-        },
-        "listing": {
-            "rename_tag": "div"
-        },
-        "dt": {
-            "rename_tag": "span"
-        },
-        "nextid": {
-            "remove": 1
-        },
-        "pre": {},
-        "center": {
-            "rename_tag": "div",
-            "set_class": "wysiwyg-text-align-center"
-        },
-        "audio": {
-            "remove": 1
-        },
-        "datalist": {
-            "rename_tag": "span"
-        },
+        "rb": 1,
+        "rp": 1,
+        "rt": 1,
+        "ruby": 1,
+        "s": 1,
         "samp": {
-            "rename_tag": "span"
-        },
-        "col": {
-            "remove": 1
-        },
-        "article": {
-            "rename_tag": "div"
-        },
-        "cite": {},
-        "link": {
-            "remove": 1
+            "rename_tag": "code"
         },
         "script": {
             "remove": 1
         },
-        "bdo": {
-            "rename_tag": "span"
-        },
-        "menu": {
+        "select": {
             "rename_tag": "ul"
         },
-        "colgroup": {
+        "section": {
+            "extract": 1
+        },
+        "small": {
+            "extract": 1,
+        },
+        "source": {
             "remove": 1
         },
-        "ruby": {
-            "rename_tag": "span"
-        },
-        "h2": {
-            "add_class": {
-                "align": "align_text"
-            }
-        },
-        "ins": {
-            "rename_tag": "span"
-        },
-        "p": {
-            "add_class": {
-                "align": "align_text"
-            }
-        },
-        "sub": {
-            "rename_tag": "span"
-        },
-        "comment": {
+        "spacer": {
             "remove": 1
         },
-        "frameset": {
+        "span": { "extract": 1 },
+        "strike": {
+            "rename_tag": "del"
+        },
+        "strong": 1,
+        "style": {
             "remove": 1
         },
-        "optgroup": {
-            "rename_tag": "span"
+        "sub": 1,
+        "sup": 1,
+        "svg": { "remove": 1 },
+        "table": { "remove": 1 },
+        "tbody": { "remove": 1 },
+        "textarea": {
+            "rename_tag": "p"
         },
-        "header": {
-            "rename_tag": "div"
-        }
+        "td": {
+            "remove": 1
+        },
+        "tfoot": {
+            "rename_tag": "p"
+        },
+        "th": {
+            "rename_tag": "strong"
+        },
+        "thead": {
+            "rename_tag": "p"
+        },
+        "time": 1,
+        "title": {
+            "remove": 1
+        },
+        "tr": {
+            "rename_tag": "p"
+        },
+        "track": {
+            "remove": 1
+        },
+        "tt": {
+            "rename_tag": "blockquote"
+        },
+        "u": {
+            "extract": 1
+        },
+        "ul": 1,
+        "var": 1,
+        "video": {
+            "remove": 1
+        },
+        "wbr": {
+            "remove": 1
+        },
+        "xml": {
+            "remove": 1
+        },
+        "xmp": {
+            "rename_tag": "p"
+        },
     }
 };

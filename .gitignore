@@ -1,2 +1,6 @@
 .tm_sync.config
 .idea
+
+.DS_Store
+
+test/all-tags.html

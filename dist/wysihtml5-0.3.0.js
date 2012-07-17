@@ -3474,6 +3474,13 @@ wysihtml5.browser = (function() {
     hasCurrentStyleProperty: function() {
       return "currentStyle" in testElement;
     },
+    
+    /**
+     * Firefox on OSX navigates through history when hitting CMD + Arrow right/left
+     */
+    hasHistoryIssue: function() {
+      return isGecko;
+    },
 
     /**
      * Whether the browser inserts a <br> when pressing enter in a contentEditable element
@@ -3499,29 +3506,7 @@ wysihtml5.browser = (function() {
     supportsEventsInIframeCorrectly: function() {
       return !isOpera;
     },
-
-    /**
-     * Chrome & Safari only fire the ondrop/ondragend/... events when the ondragover event is cancelled
-     * with event.preventDefault
-     * Firefox 3.6 fires those events anyway, but the mozilla doc says that the dragover/dragenter event needs
-     * to be cancelled
-     */
-    firesOnDropOnlyWhenOnDragOverIsCancelled: function() {
-      return isWebKit || isGecko;
-    },
     
-    /**
-     * Whether the browser supports the event.dataTransfer property in a proper way
-     */
-    supportsDataTransfer: function() {
-      try {
-        // Firefox doesn't support dataTransfer in a safe way, it doesn't strip script code in the html payload (like Chrome does)
-        return isWebKit && (window.Clipboard || window.DataTransfer).prototype.getData;
-      } catch(e) {
-        return false;
-      }
-    },
-
     /**
      * Everything below IE9 doesn't know how to treat HTML5 tags
      *
@@ -3676,14 +3661,6 @@ wysihtml5.browser = (function() {
      */
     supportsSelectionModify: function() {
       return "getSelection" in window && "modify" in window.getSelection();
-    },
-    
-    /**
-     * Whether the browser supports the classList object for fast className manipulation
-     * See https://developer.mozilla.org/en/DOM/element.classList
-     */
-    supportsClassList: function() {
-      return "classList" in testElement;
     },
     
     /**
@@ -4058,12 +4035,12 @@ wysihtml5.browser = (function() {
   // Reveal url reg exp to the outside
   wysihtml5.dom.autoLink.URL_REG_EXP = URL_REG_EXP;
 })(wysihtml5);(function(wysihtml5) {
-  var supportsClassList = wysihtml5.browser.supportsClassList(),
-      api               = wysihtml5.dom;
+  var api = wysihtml5.dom;
   
   api.addClass = function(element, className) {
-    if (supportsClassList) {
-      return element.classList.add(className);
+    var classList = element.classList;
+    if (classList) {
+      return classList.add(className);
     }
     if (api.hasClass(element, className)) {
       return;
@@ -4072,16 +4049,18 @@ wysihtml5.browser = (function() {
   };
   
   api.removeClass = function(element, className) {
-    if (supportsClassList) {
-      return element.classList.remove(className);
+    var classList = element.classList;
+    if (classList) {
+      return classList.remove(className);
     }
     
     element.className = element.className.replace(new RegExp("(^|\\s+)" + className + "(\\s+|$)"), " ");
   };
   
   api.hasClass = function(element, className) {
-    if (supportsClassList) {
-      return element.classList.contains(className);
+    var classList = element.classList;
+    if (classList) {
+      return classList.contains(className);
     }
     
     var elementClassName = element.className;
@@ -4740,6 +4719,42 @@ wysihtml5.dom.observe = function(element, eventNames, handler) {
  *      }
  *    });
  *    // => '<p class="red">foo</p><p>bar</p>'
+ *
+ *    var userHTML = '<div class="red">foo</div><div class="pink">bar</div>';
+ *    wysihtml5.dom.parse(userHTML, {
+ *      tags: {
+ *        div: {
+ *          extract: 1
+ *        }
+ *      }
+ *    });
+ *    // => 'foobar'
+ *
+ *    var userHTML = '<div class="red">foo</div><div class="pink">bar</div>';
+ *    wysihtml5.dom.parse(userHTML, {
+ *      tags: {
+ *        div: {
+ *          extract: {
+ *             if : { class: "^red|other$" }
+ *             ifnot : { class: "^pink$" }
+ *          }
+ *        }
+ *      }
+ *    });
+ *
+ *    // => 'foo<div class="pink">bar</div>'
+ *    function myCheck (attr, node) { if (attr == 'localhost') { return '#'; } return attr; }
+ *    var userHTML = '<a href="http://google.com">foo</a><a href="localhost">bar</a>';
+ *    wysihtml5.dom.parse(userHTML, {
+ *      tags: {
+ *        a: {
+ *          check_attributes: { 
+ *            href: { func: 'myCheck' }
+ *          }
+ *        }
+ *      }
+ *    });
+ *    // => '<a href="http://google.com">foo</a><a href="#">bar</a>'
  */
 wysihtml5.dom.parse = (function() {
   
@@ -4873,28 +4888,91 @@ wysihtml5.dom.parse = (function() {
         nodeName = "div";
       }
     }
-    
+
     if (nodeName in tagRules) {
       rule = tagRules[nodeName];
-      if (!rule || rule.remove) {
-        return null;
+      method = _checkRules(oldNode, rule);
+      switch (method) {
+        case 'remove' :
+              return null;
+              break;
+        case 'extract':
+              newNode = oldNode.ownerDocument.createDocumentFragment();
+              break;
+        case 'rename_tag':
+              rule = typeof(rule) === "string" ? { rename_tag: rule } : rule;
+              newNode = oldNode.ownerDocument.createElement(rule.rename_tag || nodeName);
+              break;
+        case 'keep':
+              newNode = oldNode.ownerDocument.createElement(nodeName);
+              break;
       }
-      
-      rule = typeof(rule) === "string" ? { rename_tag: rule } : rule;
     } else if (oldNode.firstChild) {
       rule = { rename_tag: DEFAULT_NODE_NAME };
+      newNode = oldNode.ownerDocument.createElement(DEFAULT_NODE_NAME);
     } else {
       // Remove empty unknown elements
       return null;
     }
     
-    newNode = oldNode.ownerDocument.createElement(rule.rename_tag || nodeName);
     _handleAttributes(oldNode, newNode, rule);
     
     oldNode = null;
     return newNode;
   }
   
+  /* function _checkRules(node, rules)
+   *
+   * returns the name of the rule which should be applied to the node
+   *
+   * @param node object - the node to check
+   * @param rules mixed - a string or object containing the rules for the node's tag
+   * @return string - name of the rule to apply
+   */
+  function _checkRules (node, rules) {
+    if (typeof(rules) == 'undefined' || !rules) { return 'remove'; }
+    if (typeof(rules) == 'string') { return 'rename_tag'; }
+    
+    var finalRules = [];
+    var priorityOfRules = ['remove', 'extract', 'rename_tag', 'keep'];
+    for(var rule in rules) {
+        if (typeof(rules[rule]) != 'object') { finalRules.push(rule); continue; }
+        var add = true;
+        if (rules[rule].if && !_checkAttributesRules(node, rules[rule].if)) {
+            add = false;
+        }
+        if (add && rules[rule].ifnot && _checkAttributesRules(node, rules[rule].ifnot)) {
+            add = false;
+        }
+        if (add) { finalRules.push(rule); }
+    }
+    var ruleIndex = priorityOfRules.length-1;
+    for (var i = 0; i < finalRules.length; i++) {
+        var ind = priorityOfRules.indexOf(finalRules[i]);
+        if (ind > -1 && ind < ruleIndex) { ruleIndex = ind; }
+    }
+    return priorityOfRules[ruleIndex];
+  }
+
+  /* function _checkAttributesRules (node, setup)
+   *
+   * function checks all attributes set in setup with the corresponding patterns
+   *
+   * @param node object - the node to check
+   * @param setup object - a object where propertyName = node attribute and propertyValue = check pattern
+   * return boolean - whether the node's attributes comply to all patterns or not
+   */
+  function _checkAttributesRules (node, setup) {
+    for (var attrName in setup) {
+        var attr = _getAttribute(node, attrName);
+        var patt = new RegExp(setup[attrName], 'i');
+        if (typeof(attr) === 'undefined' || attr == null || !attr.match(patt)) {
+            return false;
+        }
+    }
+    return true;
+  }
+
   function _handleAttributes(oldNode, newNode, rule) {
     var attributes          = {},                         // fresh new set of attributes to set on newNode
         setClass            = rule.set_class,             // classes to set
@@ -4921,11 +4999,16 @@ wysihtml5.dom.parse = (function() {
     
     if (checkAttributes) {
       for (attributeName in checkAttributes) {
-        method = attributeCheckMethods[checkAttributes[attributeName]];
+        if (typeof(checkAttributes[attributeName]) === 'string') {
+            method = attributeCheckMethods[checkAttributes[attributeName]];
+        }
+        if (typeof(checkAttributes[attributeName]) === 'object' && typeof(checkAttributes[attributeName].func) !== 'undefined') {
+            method = window[checkAttributes[attributeName].func];
+        }
         if (!method) {
           continue;
         }
-        newAttributeValue = method(_getAttribute(oldNode, attributeName));
+        newAttributeValue = method(_getAttribute(oldNode, attributeName), oldNode);
         if (typeof(newAttributeValue) === "string") {
           attributes[attributeName] = newAttributeValue;
         }
@@ -5061,6 +5144,30 @@ wysihtml5.dom.parse = (function() {
         });
       };
     })(),
+
+    src: (function() {
+      var REG_EXP = /^(\/|https?:\/\/)/i;
+      return function(attributeValue) {
+        if (!attributeValue || !attributeValue.match(REG_EXP)) {
+          return null;
+        }
+        return attributeValue.replace(REG_EXP, function(match) {
+          return match.toLowerCase();
+        });
+      };
+    })(),
+
+    href: (function() {
+      var REG_EXP = /^(\/|https?:\/\/|mailto:)/i;
+      return function(attributeValue) {
+        if (!attributeValue || !attributeValue.match(REG_EXP)) {
+          return null;
+        }
+        return attributeValue.replace(REG_EXP, function(match) {
+          return match.toLowerCase();
+        });
+      };
+    })(),
     
     alt: (function() {
       var REG_EXP = /[^ a-z0-9_\-]/gi;
@@ -5136,7 +5243,8 @@ wysihtml5.dom.parse = (function() {
   };
   
   return parse;
-})();/**
+})();
+/**
  * Checks for empty text node childs and removes them
  *
  * @param {Element} node The element in which to cleanup
@@ -5595,10 +5703,12 @@ wysihtml5.dom.replaceWithChildNodes = function(node) {
           if (view.hasPlaceholderSet()) {
             view.clear();
           }
+          view.placeholderSet = false;
           dom.removeClass(view.element, CLASS_NAME);
         },
         set = function() {
           if (view.isEmpty()) {
+            view.placeholderSet = true;
             view.setValue(placeholderText);
             dom.addClass(view.element, CLASS_NAME);
           }
@@ -6132,7 +6242,13 @@ wysihtml5.quirks.cleanPastedHTML = (function() {
       try { newRange.setEnd(rangeBackup.endContainer, rangeBackup.endOffset); } catch(e2) {}
       try { this.setSelection(newRange); } catch(e3) {}
     },
-
+    
+    set: function(node, offset) {
+      var newRange = rangy.createRange(this.doc);
+      newRange.setStart(node, offset || 0);
+      this.setSelection(newRange);
+    },
+    
     /**
      * Insert html at the caret position and move the cursor after the inserted html
      *
@@ -6195,6 +6311,7 @@ wysihtml5.quirks.cleanPastedHTML = (function() {
      */
     scrollIntoView: function() {
       var doc           = this.doc,
+          tolerance     = 5, // px
           hasScrollBars = doc.documentElement.scrollHeight > doc.documentElement.offsetHeight,
           tempElement   = doc._wysihtml5ScrollIntoViewElement = doc._wysihtml5ScrollIntoViewElement || (function() {
             var element = doc.createElement("span");
@@ -6208,7 +6325,7 @@ wysihtml5.quirks.cleanPastedHTML = (function() {
         this.insertNode(tempElement);
         offsetTop = _getCumulativeOffsetTop(tempElement);
         tempElement.parentNode.removeChild(tempElement);
-        if (offsetTop > doc.body.scrollTop) {
+        if (offsetTop >= (doc.body.scrollTop + doc.documentElement.offsetHeight - tolerance)) {
           doc.body.scrollTop = offsetTop;
         }
       }
@@ -6859,7 +6976,7 @@ wysihtml5.Commands = Base.extend(
       return wysihtml5.commands.formatInline.exec(composer, command, "b");
     },
 
-    state: function(composer, command, color) {
+    state: function(composer, command) {
       // element.ownerDocument.queryCommandState("bold") results:
       // firefox: only <b>
       // chrome:  <b>, <strong>, <h1>, <h2>, ...
@@ -6985,7 +7102,7 @@ wysihtml5.Commands = Base.extend(
  */
 (function(wysihtml5) {
   var undef,
-      REG_EXP = /wysiwyg-font-size-[a-z\-]+/g;
+      REG_EXP = /wysiwyg-font-size-[0-9a-z\-]+/g;
   
   wysihtml5.commands.fontSize = {
     exec: function(composer, command, size) {
@@ -7008,7 +7125,7 @@ wysihtml5.Commands = Base.extend(
  */
 (function(wysihtml5) {
   var undef,
-      REG_EXP = /wysiwyg-color-[a-z]+/g;
+      REG_EXP = /wysiwyg-color-[0-9a-z]+/g;
   
   wysihtml5.commands.foreColor = {
     exec: function(composer, command, color) {
@@ -7405,9 +7522,12 @@ wysihtml5.Commands = Base.extend(
       }
 
       image = doc.createElement(NODE_NAME);
-
+      
       for (i in value) {
-        image[i] = value[i];
+        if (i === "className") {
+          i = "class";
+        }
+        image.setAttribute(i, value[i]);
       }
 
       composer.selection.insertNode(image);
@@ -7612,7 +7732,7 @@ wysihtml5.Commands = Base.extend(
       return wysihtml5.commands.formatInline.exec(composer, command, "i");
     },
 
-    state: function(composer, command, color) {
+    state: function(composer, command) {
       // element.ownerDocument.queryCommandState("italic") results:
       // firefox: only <i>
       // chrome:  <i>, <em>, <blockquote>, ...
@@ -7628,7 +7748,7 @@ wysihtml5.Commands = Base.extend(
 })(wysihtml5);(function(wysihtml5) {
   var undef,
       CLASS_NAME  = "wysiwyg-text-align-center",
-      REG_EXP     = /wysiwyg-text-align-[a-z]+/g;
+      REG_EXP     = /wysiwyg-text-align-[0-9a-z]+/g;
   
   wysihtml5.commands.justifyCenter = {
     exec: function(composer, command) {
@@ -7646,7 +7766,7 @@ wysihtml5.Commands = Base.extend(
 })(wysihtml5);(function(wysihtml5) {
   var undef,
       CLASS_NAME  = "wysiwyg-text-align-left",
-      REG_EXP     = /wysiwyg-text-align-[a-z]+/g;
+      REG_EXP     = /wysiwyg-text-align-[0-9a-z]+/g;
   
   wysihtml5.commands.justifyLeft = {
     exec: function(composer, command) {
@@ -7664,7 +7784,7 @@ wysihtml5.Commands = Base.extend(
 })(wysihtml5);(function(wysihtml5) {
   var undef,
       CLASS_NAME  = "wysiwyg-text-align-right",
-      REG_EXP     = /wysiwyg-text-align-[a-z]+/g;
+      REG_EXP     = /wysiwyg-text-align-[0-9a-z]+/g;
   
   wysihtml5.commands.justifyRight = {
     exec: function(composer, command) {
@@ -7679,7 +7799,22 @@ wysihtml5.Commands = Base.extend(
       return undef;
     }
   };
-})(wysihtml5);(function(wysihtml5) {
+})(wysihtml5);(function() {
+  var undef;
+  wysihtml5.commands.redo = {
+    exec: function(composer) {
+      return composer.undoManager.redo();
+    },
+
+    state: function(composer) {
+      return false;
+    },
+
+    value: function() {
+      return undef;
+    }
+  };
+})();(function(wysihtml5) {
   var undef;
   wysihtml5.commands.underline = {
     exec: function(composer, command) {
@@ -7694,7 +7829,22 @@ wysihtml5.Commands = Base.extend(
       return undef;
     }
   };
-})(wysihtml5);/**
+})(wysihtml5);(function() {
+  var undef;
+  wysihtml5.commands.undo = {
+    exec: function(composer) {
+      return composer.undoManager.undo();
+    },
+
+    state: function(composer) {
+      return false;
+    },
+
+    value: function() {
+      return undef;
+    }
+  };
+})();/**
  * Undo Manager for wysihtml5
  * slightly inspired by http://rniwa.com/editing/undomanager.html#the-undomanager-interface
  */
@@ -7703,7 +7853,9 @@ wysihtml5.Commands = Base.extend(
       Y_KEY               = 89,
       BACKSPACE_KEY       = 8,
       DELETE_KEY          = 46,
-      MAX_HISTORY_ENTRIES = 40,
+      MAX_HISTORY_ENTRIES = 25,
+      DATA_ATTR_NODE      = "data-wysihtml5-selection-node",
+      DATA_ATTR_OFFSET    = "data-wysihtml5-selection-offset",
       UNDO_HTML           = '<span id="_wysihtml5-undo" class="_wysihtml5-temp">' + wysihtml5.INVISIBLE_SPACE + '</span>',
       REDO_HTML           = '<span id="_wysihtml5-redo" class="_wysihtml5-temp">' + wysihtml5.INVISIBLE_SPACE + '</span>',
       dom                 = wysihtml5.dom;
@@ -7721,13 +7873,14 @@ wysihtml5.Commands = Base.extend(
       this.editor = editor;
       this.composer = editor.composer;
       this.element = this.composer.element;
-      this.history = [this.composer.getValue()];
-      this.position = 1;
       
-      // Undo manager currently only supported in browsers who have the insertHTML command (not IE)
-      if (this.composer.commands.support("insertHTML")) {
-        this._observe();
-      }
+      this.position = 0;
+      this.historyStr = [];
+      this.historyDom = [];
+      
+      this.transact();
+      
+      this._observe();
     },
     
     _observe: function() {
@@ -7824,46 +7977,124 @@ wysihtml5.Commands = Base.extend(
     },
     
     transact: function() {
-      var previousHtml  = this.history[this.position - 1],
-          currentHtml   = this.composer.getValue();
+      var previousHtml      = this.historyStr[this.position - 1],
+          currentHtml       = this.composer.getValue();
       
-      if (currentHtml == previousHtml) {
+      if (currentHtml === previousHtml) {
         return;
       }
       
-      var length = this.history.length = this.position;
+      var length = this.historyStr.length = this.historyDom.length = this.position;
       if (length > MAX_HISTORY_ENTRIES) {
-        this.history.shift();
+        this.historyStr.shift();
+        this.historyDom.shift();
         this.position--;
       }
       
       this.position++;
-      this.history.push(currentHtml);
+      
+      var range   = this.composer.selection.getRange(),
+          node    = range.startContainer || this.element,
+          offset  = range.startOffset    || 0,
+          element,
+          position;
+      
+      if (node.nodeType === wysihtml5.ELEMENT_NODE) {
+        element = node;
+      } else {
+        element  = node.parentNode;
+        position = this.getChildNodeIndex(element, node);
+      }
+      
+      element.setAttribute(DATA_ATTR_OFFSET, offset);
+      if (typeof(position) !== "undefined") {
+        element.setAttribute(DATA_ATTR_NODE, position);
+      }
+      
+      var clone = this.element.cloneNode(!!currentHtml);
+      this.historyDom.push(clone);
+      this.historyStr.push(currentHtml);
+      
+      element.removeAttribute(DATA_ATTR_OFFSET);
+      element.removeAttribute(DATA_ATTR_NODE);
     },
     
     undo: function() {
       this.transact();
       
-      if (this.position <= 1) {
+      if (!this.undoPossible()) {
         return;
       }
       
-      this.set(this.history[--this.position - 1]);
+      this.set(this.historyDom[--this.position - 1]);
       this.editor.fire("undo:composer");
     },
     
     redo: function() {
-      if (this.position >= this.history.length) {
+      if (!this.redoPossible()) {
         return;
       }
       
-      this.set(this.history[++this.position - 1]);
+      this.set(this.historyDom[++this.position - 1]);
       this.editor.fire("redo:composer");
     },
     
-    set: function(html) {
-      this.composer.setValue(html);
-      this.editor.focus(true);
+    undoPossible: function() {
+      return this.position > 1;
+    },
+    
+    redoPossible: function() {
+      return this.position < this.historyStr.length;
+    },
+    
+    set: function(historyEntry) {
+      this.element.innerHTML = "";
+      
+      var i = 0,
+          childNodes = historyEntry.childNodes,
+          length = historyEntry.childNodes.length;
+      
+      for (; i<length; i++) {
+        this.element.appendChild(childNodes[i].cloneNode(true));
+      }
+      
+      // Restore selection
+      var offset,
+          node,
+          position;
+      
+      if (historyEntry.hasAttribute(DATA_ATTR_OFFSET)) {
+        offset    = historyEntry.getAttribute(DATA_ATTR_OFFSET);
+        position  = historyEntry.getAttribute(DATA_ATTR_NODE);
+        node      = this.element;
+      } else {
+        node      = this.element.querySelector("[" + DATA_ATTR_OFFSET + "]") || this.element;
+        offset    = node.getAttribute(DATA_ATTR_OFFSET);
+        position  = node.getAttribute(DATA_ATTR_NODE);
+        node.removeAttribute(DATA_ATTR_OFFSET);
+        node.removeAttribute(DATA_ATTR_NODE);
+      }
+      
+      if (position !== null) {
+        node = this.getChildNodeByIndex(node, +position);
+      }
+      
+      this.composer.selection.set(node, offset);
+    },
+    
+    getChildNodeIndex: function(parent, child) {
+      var i           = 0,
+          childNodes  = parent.childNodes,
+          length      = childNodes.length;
+      for (; i<length; i++) {
+        if (childNodes[i] === child) {
+          return i;
+        }
+      }
+    },
+    
+    getChildNodeByIndex: function(parent, index) {
+      return parent.childNodes[index];
     }
   });
 })(wysihtml5);
@@ -8013,7 +8244,7 @@ wysihtml5.views.View = Base.extend(
     },
 
     hasPlaceholderSet: function() {
-      return this.getTextContent() == this.textarea.element.getAttribute("placeholder");
+      return this.getTextContent() == this.textarea.element.getAttribute("placeholder") && this.placeholderSet;
     },
 
     isEmpty: function() {
@@ -8034,17 +8265,18 @@ wysihtml5.views.View = Base.extend(
         stylesheets:  this.config.stylesheets
       });
       this.iframe  = this.sandbox.getIframe();
-
-      // Create hidden field which tells the server after submit, that the user used an wysiwyg editor
-      var hiddenField = document.createElement("input");
-      hiddenField.type   = "hidden";
-      hiddenField.name   = "_wysihtml5_mode";
-      hiddenField.value  = 1;
-
-      // Store reference to current wysihtml5 instance on the textarea element
+      
       var textareaElement = this.textarea.element;
       dom.insert(this.iframe).after(textareaElement);
-      dom.insert(hiddenField).after(textareaElement);
+      
+      // Create hidden field which tells the server after submit, that the user used an wysiwyg editor
+      if (textareaElement.form) {
+        var hiddenField = document.createElement("input");
+        hiddenField.type   = "hidden";
+        hiddenField.name   = "_wysihtml5_mode";
+        hiddenField.value  = 1;
+        dom.insert(hiddenField).after(textareaElement);
+      }
     },
 
     _create: function() {
@@ -8098,7 +8330,7 @@ wysihtml5.views.View = Base.extend(
 
       // Simulate html5 autofocus on contentEditable element
       if (this.textarea.element.hasAttribute("autofocus") || document.querySelector(":focus") == this.textarea.element) {
-        setTimeout(function() { that.focus(); }, 100);
+        setTimeout(function() { that.focus(true); }, 100);
       }
 
       wysihtml5.quirks.insertLineBreakOnReturn(this);
@@ -8228,7 +8460,7 @@ wysihtml5.views.View = Base.extend(
     },
     
     _initUndoManager: function() {
-      new wysihtml5.UndoManager(this.parent);
+      this.undoManager = new wysihtml5.UndoManager(this.parent);
     }
   });
 })(wysihtml5);(function(wysihtml5) {
@@ -8447,8 +8679,7 @@ wysihtml5.views.View = Base.extend(
         iframe              = this.sandbox.getIframe(),
         element             = this.element,
         focusBlurElement    = browser.supportsEventsInIframeCorrectly() ? element : this.sandbox.getWindow(),
-        // Firefox < 3.5 doesn't support the drop event, instead it supports a so called "dragdrop" event which behaves almost the same
-        pasteEvents         = browser.supportsEvent("drop") ? ["drop", "paste"] : ["dragdrop", "paste"];
+        pasteEvents         = ["drop", "paste"];
 
     // --------- destroy:composer event ---------
     dom.observe(iframe, "DOMNodeRemoved", function() {
@@ -8506,30 +8737,10 @@ wysihtml5.views.View = Base.extend(
       that.parent.fire("unset_placeholder");
     });
 
-    if (browser.firesOnDropOnlyWhenOnDragOverIsCancelled()) {
-      dom.observe(element, ["dragover", "dragenter"], function(event) {
-        event.preventDefault();
-      });
-    }
-
     dom.observe(element, pasteEvents, function(event) {
-      var dataTransfer = event.dataTransfer,
-          data;
-
-      if (dataTransfer && browser.supportsDataTransfer()) {
-        data = dataTransfer.getData("text/html") || dataTransfer.getData("text/plain");
-      }
-      if (data) {
-        element.focus();
-        that.commands.exec("insertHTML", data);
+      setTimeout(function() {
         that.parent.fire("paste").fire("paste:composer");
-        event.stopPropagation();
-        event.preventDefault();
-      } else {
-        setTimeout(function() {
-          that.parent.fire("paste").fire("paste:composer");
-        }, 0);
-      }
+      }, 0);
     });
 
     // --------- neword event ---------
@@ -8550,6 +8761,34 @@ wysihtml5.views.View = Base.extend(
         var target = event.target;
         if (target.nodeName === "IMG") {
           that.selection.selectNode(target);
+          event.preventDefault();
+        }
+      });
+    }
+    
+    if (browser.hasHistoryIssue() && wysihtml5.browser.supportsSelectionModify()) {
+      dom.observe(element, "keydown", function(event) {
+        if (!event.metaKey && !event.ctrlKey) {
+          return;
+        }
+        
+        var keyCode   = event.keyCode,
+            win       = element.ownerDocument.defaultView,
+            selection = win.getSelection();
+        
+        if (keyCode === 37 || keyCode === 39) {
+          if (keyCode === 37) {
+            selection.modify("extend", "left", "lineboundary");
+            if (!event.shiftKey) {
+              selection.collapseToStart();
+            }
+          }
+          if (keyCode === 39) {
+            selection.modify("extend", "right", "lineboundary");
+            if (!event.shiftKey) {
+              selection.collapseToEnd();
+            }
+          }
           event.preventDefault();
         }
       });
@@ -8930,6 +9169,10 @@ wysihtml5.views.Textarea = wysihtml5.views.View.extend(
      * Show the dialog element
      */
     show: function(elementToChange) {
+      if (dom.hasClass(this.link, CLASS_NAME_OPENED)) {
+        return;
+      }
+      
       var that        = this,
           firstField  = this.container.querySelector(SELECTOR_FORM_ELEMENTS);
       this.elementToChange = elementToChange;
@@ -9014,7 +9257,11 @@ wysihtml5.views.Textarea = wysihtml5.views.View.extend(
       link.style.display = "none";
       return;
     }
-    
+    var lang = parent.editor.textarea.element.getAttribute("lang");
+    if (lang) {
+      inputAttributes.lang = lang;
+    }
+
     var wrapper = document.createElement("div");
     
     wysihtml5.lang.object(wrapperStyles).merge({
@@ -9026,7 +9273,7 @@ wysihtml5.views.Textarea = wysihtml5.views.View.extend(
     dom.insert(wrapper).into(link);
     
     dom.setStyles(inputStyles).on(input);
-    dom.setAttributes(inputAttributes).on(input)
+    dom.setAttributes(inputAttributes).on(input);
     
     dom.setStyles(wrapperStyles).on(wrapper);
     dom.setStyles(linkStyles).on(link);
@@ -9208,8 +9455,8 @@ wysihtml5.views.Textarea = wysihtml5.views.View.extend(
         }).on(links[i]);
       }
 
-      // Needed for opera
-      dom.delegate(container, "[data-wysihtml5-command]", "mousedown", function(event) { event.preventDefault(); });
+      // Needed for opera and chrome
+      dom.delegate(container, "[data-wysihtml5-command], [data-wysihtml5-action]", "mousedown", function(event) { event.preventDefault(); });
       
       dom.delegate(container, "[data-wysihtml5-command]", "click", function(event) {
         var link          = this,
@@ -9452,9 +9699,12 @@ wysihtml5.views.Textarea = wysihtml5.views.View.extend(
     },
 
     setValue: function(html, parse) {
+      this.fire("unset_placeholder");
+      
       if (!html) {
         return this.clear();
       }
+      
       this.currentView.setValue(html, parse);
       return this;
     },

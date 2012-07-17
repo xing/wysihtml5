@@ -48,6 +48,42 @@
  *      }
  *    });
  *    // => '<p class="red">foo</p><p>bar</p>'
+ *
+ *    var userHTML = '<div class="red">foo</div><div class="pink">bar</div>';
+ *    wysihtml5.dom.parse(userHTML, {
+ *      tags: {
+ *        div: {
+ *          extract: 1
+ *        }
+ *      }
+ *    });
+ *    // => 'foobar'
+ *
+ *    var userHTML = '<div class="red">foo</div><div class="pink">bar</div>';
+ *    wysihtml5.dom.parse(userHTML, {
+ *      tags: {
+ *        div: {
+ *          extract: {
+ *             if : { class: "^red|other$" }
+ *             ifnot : { class: "^pink$" }
+ *          }
+ *        }
+ *      }
+ *    });
+ *
+ *    // => 'foo<div class="pink">bar</div>'
+ *    function myCheck (attr, node) { if (attr == 'localhost') { return '#'; } return attr; }
+ *    var userHTML = '<a href="http://google.com">foo</a><a href="localhost">bar</a>';
+ *    wysihtml5.dom.parse(userHTML, {
+ *      tags: {
+ *        a: {
+ *          check_attributes: { 
+ *            href: { func: 'myCheck' }
+ *          }
+ *        }
+ *      }
+ *    });
+ *    // => '<a href="http://google.com">foo</a><a href="#">bar</a>'
  */
 wysihtml5.dom.parse = (function() {
   
@@ -184,25 +220,88 @@ wysihtml5.dom.parse = (function() {
     
     if (nodeName in tagRules) {
       rule = tagRules[nodeName];
-      if (!rule || rule.remove) {
-        return null;
+      method = _checkRules(oldNode, rule);
+      switch (method) {
+        case 'remove' :
+              return null;
+              break;
+        case 'extract':
+              newNode = oldNode.ownerDocument.createDocumentFragment();
+              break;
+        case 'rename_tag':
+              rule = typeof(rule) === "string" ? { rename_tag: rule } : rule;
+              newNode = oldNode.ownerDocument.createElement(rule.rename_tag || nodeName);
+              break;
+        case 'keep':
+              newNode = oldNode.ownerDocument.createElement(nodeName);
+              break;
       }
-      
-      rule = typeof(rule) === "string" ? { rename_tag: rule } : rule;
     } else if (oldNode.firstChild) {
       rule = { rename_tag: DEFAULT_NODE_NAME };
+      newNode = oldNode.ownerDocument.createElement(DEFAULT_NODE_NAME);
     } else {
       // Remove empty unknown elements
       return null;
     }
     
-    newNode = oldNode.ownerDocument.createElement(rule.rename_tag || nodeName);
     _handleAttributes(oldNode, newNode, rule);
     
     oldNode = null;
     return newNode;
   }
   
+  /* function _checkRules(node, rules)
+   *
+   * returns the name of the rule which should be applied to the node
+   *
+   * @param node object - the node to check
+   * @param rules mixed - a string or object containing the rules for the node's tag
+   * @return string - name of the rule to apply
+   */
+  function _checkRules (node, rules) {
+    if (typeof(rules) == 'undefined' || !rules) { return 'remove'; }
+    if (typeof(rules) == 'string') { return 'rename_tag'; }
+    
+    var finalRules = [];
+    var priorityOfRules = ['remove', 'extract', 'rename_tag', 'keep'];
+    for(var rule in rules) {
+        if (typeof(rules[rule]) != 'object') { finalRules.push(rule); continue; }
+        var add = true;
+        if (rules[rule].if && !_checkAttributesRules(node, rules[rule].if)) {
+            add = false;
+        }
+        if (add && rules[rule].ifnot && _checkAttributesRules(node, rules[rule].ifnot)) {
+            add = false;
+        }
+        if (add) { finalRules.push(rule); }
+    }
+    var ruleIndex = priorityOfRules.length-1;
+    for (var i = 0; i < finalRules.length; i++) {
+        var ind = priorityOfRules.indexOf(finalRules[i]);
+        if (ind > -1 && ind < ruleIndex) { ruleIndex = ind; }
+    }
+    return priorityOfRules[ruleIndex];
+  }
+
+  /* function _checkAttributesRules (node, setup)
+   *
+   * function checks all attributes set in setup with the corresponding patterns
+   *
+   * @param node object - the node to check
+   * @param setup object - a object where propertyName = node attribute and propertyValue = check pattern
+   * return boolean - whether the node's attributes comply to all patterns or not
+   */
+  function _checkAttributesRules (node, setup) {
+    for (var attrName in setup) {
+        var attr = _getAttribute(node, attrName);
+        var patt = new RegExp(setup[attrName], 'i');
+        if (typeof(attr) === 'undefined' || attr == null || !attr.match(patt)) {
+            return false;
+        }
+    }
+    return true;
+  }
+
   function _handleAttributes(oldNode, newNode, rule) {
     var attributes          = {},                         // fresh new set of attributes to set on newNode
         setClass            = rule.set_class,             // classes to set
@@ -229,11 +328,16 @@ wysihtml5.dom.parse = (function() {
     
     if (checkAttributes) {
       for (attributeName in checkAttributes) {
-        method = attributeCheckMethods[checkAttributes[attributeName]];
+        if (typeof(checkAttributes[attributeName]) === 'string') {
+            method = attributeCheckMethods[checkAttributes[attributeName]];
+        }
+        if (typeof(checkAttributes[attributeName]) === 'object' && typeof(checkAttributes[attributeName].func) !== 'undefined') {
+            method = window[checkAttributes[attributeName].func];
+        }
         if (!method) {
           continue;
         }
-        newAttributeValue = method(_getAttribute(oldNode, attributeName));
+        newAttributeValue = method(_getAttribute(oldNode, attributeName), oldNode);
         if (typeof(newAttributeValue) === "string") {
           attributes[attributeName] = newAttributeValue;
         }
