@@ -238,7 +238,7 @@ wysihtml5.dom.parse = (function() {
           if (!method) {
             continue;
           }
-          newAttributeValue = method(_getAttribute(oldNode, attributeName));
+          newAttributeValue = method(_getAttribute(oldNode, attributeName, oldNode));
           if (typeof(newAttributeValue) === "string") {
             attributes[attributeName] = newAttributeValue;
           }
