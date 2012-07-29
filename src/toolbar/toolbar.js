@@ -27,6 +27,8 @@
       this.editor     = editor;
       this.container  = typeof(container) === "string" ? document.getElementById(container) : container;
       this.composer   = editor.composer;
+      this.dom_observables = [];    // NF
+      this.observables = [];        // NF
 
       this._getLinks("command");
       this._getLinks("action");
@@ -40,6 +42,33 @@
       for (; i<length; i++) {
         new wysihtml5.toolbar.Speech(this, speechInputLinks[i]);
       }
+
+      // enable the toolbar and it's items. Needed if we start in 'html view' or recreate toolbar after _change_view. NF
+      this.enable( this.editor.currentView !== editor.textarea, true );
+      
+    },
+
+    // Destroy this Toolbar instance so it can be created anew. NF
+    // We could have a new connect() function that did _observe(), updated this.editor, composer & speechInputLinks but I think
+    // it may be best to create the Toolbar anew.
+    destroy: function(){
+
+      // If we get here before "blur:composer" event we'll remove same and _clearInterval() won't be called, so clean up here.
+      clearInterval( this.interval );
+
+      // Disable the toolbar and it's items.
+      this.enable( false, true );
+
+      // remove all observables.
+      while( this.dom_observables.length )
+        this.dom_observables.shift().stop();
+
+      while( this.observables.length ){
+        var obev = this.observables.shift();
+        this.editor.stopObserving( obev.eventName, obev.handler );
+      }
+
+      this.editor = this.composer = null;
     },
 
     _getLinks: function(type) {
@@ -152,6 +181,12 @@
           length    = links.length,
           i         = 0;
       
+      // add editor.observe event and track it for destroy(). NF
+      var add_observer = function( eventName, handler ){
+          editor.observe( eventName, handler );
+          that.observables.push({ "eventName": eventName, "handler": handler } );
+      }
+      
       for (; i<length; i++) {
         // 'javascript:;' and unselectable=on Needed for IE, but done in all browsers to make sure that all get the same css applied
         // (you know, a:link { ... } doesn't match anchors with missing href attribute)
@@ -161,53 +196,75 @@
         }).on(links[i]);
       }
 
-      // Needed for opera and chrome
-      dom.delegate(container, "[data-wysihtml5-command], [data-wysihtml5-action]", "mousedown", function(event) { event.preventDefault(); });
+      // Needed for opera and chrome. We track all observables so we can destroy same. NF
+      that.dom_observables.push(
+         dom.delegate(container, "[data-wysihtml5-command]", "mousedown", function(event) { event.preventDefault(); })
+      );
+      that.dom_observables.push(
+         dom.delegate(container, "[data-wysihtml5-action]", "mousedown", function(event) { event.preventDefault(); })
+      );
       
-      dom.delegate(container, "[data-wysihtml5-command]", "click", function(event) {
-        var link          = this,
-            command       = link.getAttribute("data-wysihtml5-command"),
-            commandValue  = link.getAttribute("data-wysihtml5-command-value");
-        that.execCommand(command, commandValue);
-        event.preventDefault();
-      });
+      that.dom_observables.push(
+          dom.delegate(container, "[data-wysihtml5-command]", "click", function(event) {
+            var link          = this,
+                command       = link.getAttribute("data-wysihtml5-command"),
+                commandValue  = link.getAttribute("data-wysihtml5-command-value");
+                that.execCommand(command, commandValue);
+                event.preventDefault();
+            })
+      );
 
-      dom.delegate(container, "[data-wysihtml5-action]", "click", function(event) {
-        var action = this.getAttribute("data-wysihtml5-action");
-        that.execAction(action);
-        event.preventDefault();
-      });
+      that.dom_observables.push(
+        dom.delegate(container, "[data-wysihtml5-action]", "click", function(event) {
+          var action = this.getAttribute("data-wysihtml5-action");
+          that.execAction(action);
+          event.preventDefault();
+        })
+      );
 
-      editor.observe("focus:composer", function() {
+      var _setInterval = function() {
         that.bookmark = null;
         clearInterval(that.interval);
         that.interval = setInterval(function() { that._updateLinkStates(); }, 500);
-      });
+      }
 
-      editor.observe("blur:composer", function() {
+      var _clearInterval = function() {
         clearInterval(that.interval);
-      });
+      }
 
-      editor.observe("destroy:composer", function() {
-        clearInterval(that.interval);
-      });
+      add_observer( "focus:composer", _setInterval );
 
-      editor.observe("change_view", function(currentView) {
+      add_observer( "blur:composer", _clearInterval );     // see cmt in destroy()
+
+      add_observer( "destroy:composer", _clearInterval );
+
+      add_observer( "change_view", function(currentView) {
         // Set timeout needed in order to let the blur event fire first
         setTimeout(function() {
-          that.commandsDisabled = (currentView !== "composer");
-          that._updateLinkStates();
-          if (that.commandsDisabled) {
-            dom.addClass(container, CLASS_NAME_COMMANDS_DISABLED);
-          } else {
-            dom.removeClass(container, CLASS_NAME_COMMANDS_DISABLED);
-          }
-        }, 0);
+            // Note re. Multiple editors and dynamic toolbar creation. NF
+            // If destroy() was called, then when we reach here the toolbar no longer exists so don't do _updateLinkStates()
+            // in enable(). The Toolbar will be recreated and the constructor will do enable() -> _updateLinkStates().
+            that.enable( currentView === "composer", that.observables.length );
+        }, 0 );
       });
     },
 
+    // Enable/disable this toolbar and optionally update item link states. NF
+    enable: function( enable, updateLinkStates ){
+      if ( this.commandsDisabled == undefined || this.commandsDisabled == enable ){
+        this.commandsDisabled = !enable;
+        if ( updateLinkStates )
+            this._updateLinkStates();
+        if (!enable) {
+          dom.addClass(this.container, CLASS_NAME_COMMANDS_DISABLED);
+        } else {
+          dom.removeClass(this.container, CLASS_NAME_COMMANDS_DISABLED);
+        }
+      }
+    },
+
     _updateLinkStates: function() {
-      var element           = this.composer.element,
+      var // element           = this.composer.element,
           commandMapping    = this.commandMapping,
           actionMapping     = this.actionMapping,
           i,
