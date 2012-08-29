@@ -110,6 +110,10 @@
         }
       });
     }
+
+    dom.observe(element, "click", function(event) {
+      that.parent.fire("element:clicked", event);
+    });
     
     if (browser.hasHistoryIssue() && browser.supportsSelectionModify()) {
       dom.observe(element, "keydown", function(event) {
