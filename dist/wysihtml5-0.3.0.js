@@ -5061,6 +5061,30 @@ wysihtml5.dom.parse = (function() {
         });
       };
     })(),
+
+    src: (function() {
+      var REG_EXP = /^(\/|https?:\/\/)/i;
+      return function(attributeValue) {
+        if (!attributeValue || !attributeValue.match(REG_EXP)) {
+          return null;
+        }
+        return attributeValue.replace(REG_EXP, function(match) {
+          return match.toLowerCase();
+        });
+      };
+    })(),
+
+    href: (function() {
+      var REG_EXP = /^(\/|https?:\/\/|mailto:)/i;
+      return function(attributeValue) {
+        if (!attributeValue || !attributeValue.match(REG_EXP)) {
+          return null;
+        }
+        return attributeValue.replace(REG_EXP, function(match) {
+          return match.toLowerCase();
+        });
+      };
+    })(),
     
     alt: (function() {
       var REG_EXP = /[^ a-z0-9_\-]/gi;
@@ -5136,7 +5160,8 @@ wysihtml5.dom.parse = (function() {
   };
   
   return parse;
-})();/**
+})();
+/**
  * Checks for empty text node childs and removes them
  *
  * @param {Element} node The element in which to cleanup
@@ -5595,10 +5620,12 @@ wysihtml5.dom.replaceWithChildNodes = function(node) {
           if (view.hasPlaceholderSet()) {
             view.clear();
           }
+          view.placeholderSet = false;
           dom.removeClass(view.element, CLASS_NAME);
         },
         set = function() {
           if (view.isEmpty()) {
+            view.placeholderSet = true;
             view.setValue(placeholderText);
             dom.addClass(view.element, CLASS_NAME);
           }
@@ -6195,6 +6222,7 @@ wysihtml5.quirks.cleanPastedHTML = (function() {
      */
     scrollIntoView: function() {
       var doc           = this.doc,
+          tolerance     = 5, // px
           hasScrollBars = doc.documentElement.scrollHeight > doc.documentElement.offsetHeight,
           tempElement   = doc._wysihtml5ScrollIntoViewElement = doc._wysihtml5ScrollIntoViewElement || (function() {
             var element = doc.createElement("span");
@@ -6208,7 +6236,7 @@ wysihtml5.quirks.cleanPastedHTML = (function() {
         this.insertNode(tempElement);
         offsetTop = _getCumulativeOffsetTop(tempElement);
         tempElement.parentNode.removeChild(tempElement);
-        if (offsetTop > doc.body.scrollTop) {
+        if (offsetTop >= (doc.body.scrollTop + doc.documentElement.offsetHeight - tolerance)) {
           doc.body.scrollTop = offsetTop;
         }
       }
@@ -6859,7 +6887,7 @@ wysihtml5.Commands = Base.extend(
       return wysihtml5.commands.formatInline.exec(composer, command, "b");
     },
 
-    state: function(composer, command, color) {
+    state: function(composer, command) {
       // element.ownerDocument.queryCommandState("bold") results:
       // firefox: only <b>
       // chrome:  <b>, <strong>, <h1>, <h2>, ...
@@ -6985,7 +7013,7 @@ wysihtml5.Commands = Base.extend(
  */
 (function(wysihtml5) {
   var undef,
-      REG_EXP = /wysiwyg-font-size-[a-z\-]+/g;
+      REG_EXP = /wysiwyg-font-size-[0-9a-z\-]+/g;
   
   wysihtml5.commands.fontSize = {
     exec: function(composer, command, size) {
@@ -7008,7 +7036,7 @@ wysihtml5.Commands = Base.extend(
  */
 (function(wysihtml5) {
   var undef,
-      REG_EXP = /wysiwyg-color-[a-z]+/g;
+      REG_EXP = /wysiwyg-color-[0-9a-z]+/g;
   
   wysihtml5.commands.foreColor = {
     exec: function(composer, command, color) {
@@ -7405,9 +7433,12 @@ wysihtml5.Commands = Base.extend(
       }
 
       image = doc.createElement(NODE_NAME);
-
+      
       for (i in value) {
-        image[i] = value[i];
+        if (i === "className") {
+          i = "class";
+        }
+        image.setAttribute(i, value[i]);
       }
 
       composer.selection.insertNode(image);
@@ -7612,7 +7643,7 @@ wysihtml5.Commands = Base.extend(
       return wysihtml5.commands.formatInline.exec(composer, command, "i");
     },
 
-    state: function(composer, command, color) {
+    state: function(composer, command) {
       // element.ownerDocument.queryCommandState("italic") results:
       // firefox: only <i>
       // chrome:  <i>, <em>, <blockquote>, ...
@@ -7628,7 +7659,7 @@ wysihtml5.Commands = Base.extend(
 })(wysihtml5);(function(wysihtml5) {
   var undef,
       CLASS_NAME  = "wysiwyg-text-align-center",
-      REG_EXP     = /wysiwyg-text-align-[a-z]+/g;
+      REG_EXP     = /wysiwyg-text-align-[0-9a-z]+/g;
   
   wysihtml5.commands.justifyCenter = {
     exec: function(composer, command) {
@@ -7646,7 +7677,7 @@ wysihtml5.Commands = Base.extend(
 })(wysihtml5);(function(wysihtml5) {
   var undef,
       CLASS_NAME  = "wysiwyg-text-align-left",
-      REG_EXP     = /wysiwyg-text-align-[a-z]+/g;
+      REG_EXP     = /wysiwyg-text-align-[0-9a-z]+/g;
   
   wysihtml5.commands.justifyLeft = {
     exec: function(composer, command) {
@@ -7664,7 +7695,7 @@ wysihtml5.Commands = Base.extend(
 })(wysihtml5);(function(wysihtml5) {
   var undef,
       CLASS_NAME  = "wysiwyg-text-align-right",
-      REG_EXP     = /wysiwyg-text-align-[a-z]+/g;
+      REG_EXP     = /wysiwyg-text-align-[0-9a-z]+/g;
   
   wysihtml5.commands.justifyRight = {
     exec: function(composer, command) {
@@ -7679,7 +7710,22 @@ wysihtml5.Commands = Base.extend(
       return undef;
     }
   };
-})(wysihtml5);(function(wysihtml5) {
+})(wysihtml5);(function() {
+  var undef;
+  wysihtml5.commands.redo = {
+    exec: function(composer) {
+      return composer.undoManager.redo();
+    },
+
+    state: function(composer) {
+      return false;
+    },
+
+    value: function() {
+      return undef;
+    }
+  };
+})();(function(wysihtml5) {
   var undef;
   wysihtml5.commands.underline = {
     exec: function(composer, command) {
@@ -7694,7 +7740,22 @@ wysihtml5.Commands = Base.extend(
       return undef;
     }
   };
-})(wysihtml5);/**
+})(wysihtml5);(function() {
+  var undef;
+  wysihtml5.commands.undo = {
+    exec: function(composer) {
+      return composer.undoManager.undo();
+    },
+
+    state: function(composer) {
+      return false;
+    },
+
+    value: function() {
+      return undef;
+    }
+  };
+})();/**
  * Undo Manager for wysihtml5
  * slightly inspired by http://rniwa.com/editing/undomanager.html#the-undomanager-interface
  */
@@ -7703,7 +7764,8 @@ wysihtml5.Commands = Base.extend(
       Y_KEY               = 89,
       BACKSPACE_KEY       = 8,
       DELETE_KEY          = 46,
-      MAX_HISTORY_ENTRIES = 40,
+      MAX_HISTORY_ENTRIES = 30,
+      CARET_PLACEHOLDER   = "_wysihtml5-caret-placeholder",
       UNDO_HTML           = '<span id="_wysihtml5-undo" class="_wysihtml5-temp">' + wysihtml5.INVISIBLE_SPACE + '</span>',
       REDO_HTML           = '<span id="_wysihtml5-redo" class="_wysihtml5-temp">' + wysihtml5.INVISIBLE_SPACE + '</span>',
       dom                 = wysihtml5.dom;
@@ -7715,19 +7777,25 @@ wysihtml5.Commands = Base.extend(
     }
   }
   
+  function silentRemove(element) {
+    if (element.parentNode) {
+      element.parentNode.removeChild(element);
+    }
+  }
+  
   wysihtml5.UndoManager = wysihtml5.lang.Dispatcher.extend(
     /** @scope wysihtml5.UndoManager.prototype */ {
     constructor: function(editor) {
       this.editor = editor;
       this.composer = editor.composer;
       this.element = this.composer.element;
-      this.history = [this.composer.getValue()];
+      
+      var initialValue = this.composer.getValue();
+      this.history = [initialValue];
+      this.historyWithCaret = [initialValue];
       this.position = 1;
       
-      // Undo manager currently only supported in browsers who have the insertHTML command (not IE)
-      if (this.composer.commands.support("insertHTML")) {
-        this._observe();
-      }
+      this._observe();
     },
     
     _observe: function() {
@@ -7825,45 +7893,70 @@ wysihtml5.Commands = Base.extend(
     
     transact: function() {
       var previousHtml  = this.history[this.position - 1],
-          currentHtml   = this.composer.getValue();
+          currentHtml   = this.composer.getValue(),
+          doc           = this.composer.sandbox.getDocument(),
+          that          = this;
       
       if (currentHtml == previousHtml) {
         return;
       }
       
-      var length = this.history.length = this.position;
+      var length = this.history.length = this.historyWithCaret.length = this.position;
       if (length > MAX_HISTORY_ENTRIES) {
         this.history.shift();
+        this.historyWithCaret.shift();
         this.position--;
       }
       
       this.position++;
-      this.history.push(currentHtml);
+          
+      this.composer.selection.executeAndRestoreSimple(function() {
+        var placeholder = doc.createElement("span");
+        placeholder.id = CARET_PLACEHOLDER;
+        that.composer.selection.insertNode(placeholder);
+        that.history.push(currentHtml);
+        that.historyWithCaret.push(that.composer.getValue());
+        silentRemove(placeholder);
+      });
     },
     
     undo: function() {
       this.transact();
       
-      if (this.position <= 1) {
+      if (!this.undoPossible()) {
         return;
       }
       
-      this.set(this.history[--this.position - 1]);
+      this.set(this.historyWithCaret[--this.position - 1]);
       this.editor.fire("undo:composer");
     },
     
     redo: function() {
-      if (this.position >= this.history.length) {
+      if (!this.redoPossible()) {
         return;
       }
       
-      this.set(this.history[++this.position - 1]);
+      this.set(this.historyWithCaret[++this.position - 1]);
       this.editor.fire("redo:composer");
+    },
+    
+    undoPossible: function() {
+      return this.position > 1;
+    },
+    
+    redoPossible: function() {
+      return this.position < this.history.length;
     },
     
     set: function(html) {
       this.composer.setValue(html);
-      this.editor.focus(true);
+      var placeholder = this.composer.sandbox.getDocument().getElementById(CARET_PLACEHOLDER);
+      if (placeholder) {
+        this.composer.selection.setAfter(placeholder);
+        silentRemove(placeholder);
+      } else {
+        this.editor.focus(true);
+      }
     }
   });
 })(wysihtml5);
@@ -8013,7 +8106,7 @@ wysihtml5.views.View = Base.extend(
     },
 
     hasPlaceholderSet: function() {
-      return this.getTextContent() == this.textarea.element.getAttribute("placeholder");
+      return this.getTextContent() == this.textarea.element.getAttribute("placeholder") && this.placeholderSet;
     },
 
     isEmpty: function() {
@@ -8034,17 +8127,18 @@ wysihtml5.views.View = Base.extend(
         stylesheets:  this.config.stylesheets
       });
       this.iframe  = this.sandbox.getIframe();
-
-      // Create hidden field which tells the server after submit, that the user used an wysiwyg editor
-      var hiddenField = document.createElement("input");
-      hiddenField.type   = "hidden";
-      hiddenField.name   = "_wysihtml5_mode";
-      hiddenField.value  = 1;
-
-      // Store reference to current wysihtml5 instance on the textarea element
+      
       var textareaElement = this.textarea.element;
       dom.insert(this.iframe).after(textareaElement);
-      dom.insert(hiddenField).after(textareaElement);
+      
+      // Create hidden field which tells the server after submit, that the user used an wysiwyg editor
+      if (textareaElement.form) {
+        var hiddenField = document.createElement("input");
+        hiddenField.type   = "hidden";
+        hiddenField.name   = "_wysihtml5_mode";
+        hiddenField.value  = 1;
+        dom.insert(hiddenField).after(textareaElement);
+      }
     },
 
     _create: function() {
@@ -8098,7 +8192,7 @@ wysihtml5.views.View = Base.extend(
 
       // Simulate html5 autofocus on contentEditable element
       if (this.textarea.element.hasAttribute("autofocus") || document.querySelector(":focus") == this.textarea.element) {
-        setTimeout(function() { that.focus(); }, 100);
+        setTimeout(function() { that.focus(true); }, 100);
       }
 
       wysihtml5.quirks.insertLineBreakOnReturn(this);
@@ -8228,7 +8322,7 @@ wysihtml5.views.View = Base.extend(
     },
     
     _initUndoManager: function() {
-      new wysihtml5.UndoManager(this.parent);
+      this.undoManager = new wysihtml5.UndoManager(this.parent);
     }
   });
 })(wysihtml5);(function(wysihtml5) {
@@ -8930,6 +9024,10 @@ wysihtml5.views.Textarea = wysihtml5.views.View.extend(
      * Show the dialog element
      */
     show: function(elementToChange) {
+      if (dom.hasClass(this.link, CLASS_NAME_OPENED)) {
+        return;
+      }
+      
       var that        = this,
           firstField  = this.container.querySelector(SELECTOR_FORM_ELEMENTS);
       this.elementToChange = elementToChange;
@@ -9014,7 +9112,11 @@ wysihtml5.views.Textarea = wysihtml5.views.View.extend(
       link.style.display = "none";
       return;
     }
-    
+    var lang = parent.editor.textarea.element.getAttribute("lang");
+    if (lang) {
+      inputAttributes.lang = lang;
+    }
+
     var wrapper = document.createElement("div");
     
     wysihtml5.lang.object(wrapperStyles).merge({
@@ -9026,7 +9128,7 @@ wysihtml5.views.Textarea = wysihtml5.views.View.extend(
     dom.insert(wrapper).into(link);
     
     dom.setStyles(inputStyles).on(input);
-    dom.setAttributes(inputAttributes).on(input)
+    dom.setAttributes(inputAttributes).on(input);
     
     dom.setStyles(wrapperStyles).on(wrapper);
     dom.setStyles(linkStyles).on(link);
@@ -9067,7 +9169,7 @@ wysihtml5.views.Textarea = wysihtml5.views.View.extend(
       CLASS_NAME_COMMAND_ACTIVE     = "wysihtml5-command-active",
       CLASS_NAME_ACTION_ACTIVE      = "wysihtml5-action-active",
       dom                           = wysihtml5.dom;
-  
+
   wysihtml5.toolbar.Toolbar = Base.extend(
     /** @scope wysihtml5.toolbar.Toolbar.prototype */ {
     constructor: function(editor, container) {
@@ -9080,7 +9182,7 @@ wysihtml5.views.Textarea = wysihtml5.views.View.extend(
 
       this._observe();
       this.show();
-      
+
       var speechInputLinks  = this.container.querySelectorAll("[data-wysihtml5-command=insertSpeech]"),
           length            = speechInputLinks.length,
           i                 = 0;
@@ -9105,7 +9207,7 @@ wysihtml5.views.Textarea = wysihtml5.views.View.extend(
         value   = link.getAttribute("data-wysihtml5-" + type + "-value");
         group   = this.container.querySelector("[data-wysihtml5-" + type + "-group='" + name + "']");
         dialog  = this._getDialog(link, name);
-        
+
         mapping[name + ":" + value] = {
           link:   link,
           group:  group,
@@ -9122,7 +9224,7 @@ wysihtml5.views.Textarea = wysihtml5.views.View.extend(
           dialogElement = this.container.querySelector("[data-wysihtml5-dialog='" + command + "']"),
           dialog,
           caretBookmark;
-      
+
       if (dialogElement) {
         dialog = new wysihtml5.toolbar.Dialog(link, dialogElement);
 
@@ -9137,8 +9239,12 @@ wysihtml5.views.Textarea = wysihtml5.views.View.extend(
             that.composer.selection.setBookmark(caretBookmark);
           }
           that._execCommand(command, attributes);
-          
+
           that.editor.fire("save:dialog", { command: command, dialogContainer: dialogElement, commandLink: link });
+        });
+
+        dialog.observe("edit", function(attributes) {
+          that.editor.fire("update:dialog", { command: command, dialogContainer: dialogElement, commandLink: link });
         });
 
         dialog.observe("cancel", function() {
@@ -9198,7 +9304,7 @@ wysihtml5.views.Textarea = wysihtml5.views.View.extend(
           links     = this.commandLinks.concat(this.actionLinks),
           length    = links.length,
           i         = 0;
-      
+
       for (; i<length; i++) {
         // 'javascript:;' and unselectable=on Needed for IE, but done in all browsers to make sure that all get the same css applied
         // (you know, a:link { ... } doesn't match anchors with missing href attribute)
@@ -9208,9 +9314,9 @@ wysihtml5.views.Textarea = wysihtml5.views.View.extend(
         }).on(links[i]);
       }
 
-      // Needed for opera
-      dom.delegate(container, "[data-wysihtml5-command]", "mousedown", function(event) { event.preventDefault(); });
-      
+      // Needed for opera and chrome
+      dom.delegate(container, "[data-wysihtml5-command], [data-wysihtml5-action]", "mousedown", function(event) { event.preventDefault(); });
+
       dom.delegate(container, "[data-wysihtml5-command]", "click", function(event) {
         var link          = this,
             command       = link.getAttribute("data-wysihtml5-command"),
@@ -9315,10 +9421,10 @@ wysihtml5.views.Textarea = wysihtml5.views.View.extend(
           }
         }
       }
-      
+
       for (i in actionMapping) {
         action = actionMapping[i];
-        
+
         if (action.name === "change_view") {
           action.state = this.editor.currentView === this.editor.textarea;
           if (action.state) {
@@ -9338,7 +9444,7 @@ wysihtml5.views.Textarea = wysihtml5.views.View.extend(
       this.container.style.display = "none";
     }
   });
-  
+
 })(wysihtml5);
 /**
  * WYSIHTML5 Editor
@@ -9452,9 +9558,12 @@ wysihtml5.views.Textarea = wysihtml5.views.View.extend(
     },
 
     setValue: function(html, parse) {
+      this.fire("unset_placeholder");
+      
       if (!html) {
         return this.clear();
       }
+      
       this.currentView.setValue(html, parse);
       return this;
     },
