@@ -208,6 +208,7 @@
 
     _updateLinkStates: function() {
       var element           = this.composer.element,
+          config            = this.editor.config,
           commandMapping    = this.commandMapping,
           actionMapping     = this.actionMapping,
           i,
@@ -251,7 +252,7 @@
           if (command.group) {
             dom.addClass(command.group, CLASS_NAME_COMMAND_ACTIVE);
           }
-          if (command.dialog) {
+          if (command.dialog && config.autoOpenDialogs) {
             if (typeof(state) === "object") {
               command.dialog.show(state);
             } else {
