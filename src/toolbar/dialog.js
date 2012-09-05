@@ -105,9 +105,19 @@
       var data    = this.elementToChange || {},
           fields  = this.container.querySelectorAll(SELECTOR_FIELDS),
           length  = fields.length,
-          i       = 0;
+          i       = 0,
+          nodeName, 
+          attribute;
       for (; i<length; i++) {
-        data[fields[i].getAttribute(ATTRIBUTE_FIELDS)] = fields[i].value;
+        nodeName = fields[i].nodeName.toLowerCase();
+        attribute = fields[i].getAttribute(ATTRIBUTE_FIELDS);
+
+        if (nodeName === 'input'){
+          data[attribute] = fields[i].value;
+        } else if(nodeName === 'select'){
+          data[attribute] = fields[i].item().value;
+        }
+        
       }
       return data;
     },
