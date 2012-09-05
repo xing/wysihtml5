@@ -230,13 +230,19 @@ wysihtml5.dom.parse = (function() {
     
     if (checkAttributes) {
       for (attributeName in checkAttributes) {
-        method = attributeCheckMethods[checkAttributes[attributeName]];
-        if (!method) {
-          continue;
-        }
-        newAttributeValue = method(_getAttribute(oldNode, attributeName));
-        if (typeof(newAttributeValue) === "string") {
-          attributes[attributeName] = newAttributeValue;
+        if (checkAttributes.hasOwnProperty(attributeName)){
+          if (Object.prototype.toString.call(checkAttributes[attributeName]) === '[object Function]'){
+            method = checkAttributes[attributeName];
+          } else {
+            method = attributeCheckMethods[checkAttributes[attributeName]];
+          }
+          if (!method) {
+            continue;
+          }
+          newAttributeValue = method(_getAttribute(oldNode, attributeName, oldNode));
+          if (typeof(newAttributeValue) === "string") {
+            attributes[attributeName] = newAttributeValue;
+          }
         }
       }
     }
