@@ -57,7 +57,9 @@
     // Placeholder text to use, defaults to the placeholder attribute on the textarea element
     placeholderText:      undef,
     // Whether the rich text editor should be rendered on touch devices (wysihtml5 >= 0.3.0 comes with basic support for iOS 5)
-    supportTouchDevices:  true
+    supportTouchDevices:  true,
+    // Display a welcome message in the console
+    consoleWelcomeMessage: true
   };
   
   wysihtml5.Editor = wysihtml5.lang.Dispatcher.extend(
@@ -93,9 +95,11 @@
         }
       });
       
-      try {
-        console.log("Heya! This page is using wysihtml5 for rich text editing. Check out https://github.com/xing/wysihtml5");
-      } catch(e) {}
+      if (this.config.consoleWelcomeMessage) {
+	try {
+          console.log("Heya! This page is using wysihtml5 for rich text editing. Check out https://github.com/xing/wysihtml5");
+	} catch(e) {}
+      }
     },
     
     isCompatible: function() {
