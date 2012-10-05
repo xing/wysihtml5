@@ -211,6 +211,7 @@ wysihtml5.dom.parse = (function() {
     var attributes          = {},                         // fresh new set of attributes to set on newNode
         setClass            = rule.set_class,             // classes to set
         addClass            = rule.add_class,             // add classes based on existing attributes
+        allowAttributes     = rule.allow_attributes,      // copy attributes from old to new node
         setAttributes       = rule.set_attributes,        // attributes to set on the current node
         checkAttributes     = rule.check_attributes,      // check/convert values of attributes
         allowedClasses      = currentRules.classes,
@@ -229,6 +230,17 @@ wysihtml5.dom.parse = (function() {
     
     if (setAttributes) {
       attributes = wysihtml5.lang.object(setAttributes).clone();
+    }
+
+    if (allowAttributes) {
+      allowAttributesLength = allowAttributes.length;
+      for (i = 0; i<allowAttributesLength; i++) {
+        attributeName = allowAttributes[i];
+        newAttributeValue = _getAttribute(oldNode, attributeName);
+        if (typeof(newAttributeValue) === "string") {
+          attributes[attributeName] = newAttributeValue;
+        }
+      }
     }
     
     if (checkAttributes) {
@@ -270,7 +282,7 @@ wysihtml5.dom.parse = (function() {
       classes = classes.concat(oldClasses.split(WHITE_SPACE_REG_EXP));
     }
     classesLength = classes.length;
-    for (; i<classesLength; i++) {
+    for (i = 0; i<classesLength; i++) {
       currentClass = classes[i];
       if (allowedClasses[currentClass]) {
         newClasses.push(currentClass);

@@ -79,6 +79,7 @@ if (wysihtml5.browser.supported()) {
     var rules = {
       tags: {
         img: {
+          allow_attributes: [ "title" ],
           set_attributes: { alt: "foo", border: "1" },
           check_attributes: { src: "url", width: "numbers", height: "numbers", border: "numbers" }
         },
@@ -98,13 +99,13 @@ if (wysihtml5.browser.supported()) {
         '<h1 id="main-headline" >take this you snorty little sanitizer</h1>' +
         '<h2>yes, you!</h2>' +
         '<h3>i\'m old and ready to die</h3>' +
-        '<div><video src="pr0n.avi">foobar</video><img src="http://foo.gif" height="10" width="10"><img src="/foo.gif"></div>' +
+        '<div><video src="pr0n.avi">foobar</video><img src="http://foo.gif" height="10" width="10" title="Hell yeah!"><img src="/foo.gif"></div>' +
         '<div><a href="http://www.google.de"></a></div>',
         rules
       ),
       '<h2>take this you snorty little sanitizer</h2>' +
       '<h2>yes, you!</h2>' +
-      '<span><img alt="foo" border="1" src="http://foo.gif" height="10" width="10"><img alt="foo" border="1"></span>' +
+      '<span><img alt="foo" border="1" title="Hell yeah!" src="http://foo.gif" height="10" width="10"><img alt="foo" border="1"></span>' +
       '<span><i title=""></i></span>'
     );
   });
