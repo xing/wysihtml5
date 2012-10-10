@@ -25,6 +25,9 @@ wysihtml5.views.Textarea = wysihtml5.views.View.extend(
       html = this.parent.parse(html);
     }
     this.element.value = html;
+    var evt = document.createEvent("HTMLEvents");
+    evt.initEvent('change', true, true);
+    this.element.dispatchEvent(evt);
   },
   
   hasPlaceholderSet: function() {
