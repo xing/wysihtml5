@@ -127,7 +127,16 @@
         
         .on("beforecommand:composer", function() {
           that.transact();
+        })
+
+		/*custom dialog action for the toolbar part #2
+		if you want to add some custom dialog actions, the "unobserve blur" is not fired.
+		use " data-wysihtml5-command="" " if you want to add custom dialog actions to the toolbar */
+		
+		.on("custom:command", function() {
+          that.transact();
         });
+		
     },
     
     transact: function() {
