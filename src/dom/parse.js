@@ -233,11 +233,23 @@ wysihtml5.dom.parse = (function() {
     
     if (checkAttributes) {
       for (attributeName in checkAttributes) {
-        method = attributeCheckMethods[checkAttributes[attributeName]];
-        if (!method) {
-          continue;
+        newAttributeValue = null;
+        var attributeValueSetter = checkAttributes[attributeName];
+        switch (typeof attributeValueSetter) {
+            case 'string':
+                method = attributeCheckMethods[attributeValueSetter];
+                if (method) {
+                    newAttributeValue = method(_getAttribute(oldNode, attributeName));
+                }
+                break;
+            case 'boolean':
+                if (attributeValueSetter) {
+                    newAttributeValue = _getAttribute(oldNode, attributeName);
+                }                
+                break;
+            case 'function':
+                newAttributeValue = attributeValueSetter(_getAttribute(oldNode, attributeName));
         }
-        newAttributeValue = method(_getAttribute(oldNode, attributeName));
         if (typeof(newAttributeValue) === "string") {
           attributes[attributeName] = newAttributeValue;
         }
