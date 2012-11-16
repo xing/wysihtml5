@@ -83,11 +83,13 @@
 
       this.editor.on("change_view", function(view) {
         if (view === "composer" && !interval) {
+	  that.editor.fire("external_change_view",view);
           that.fromTextareaToComposer(true);
           startInterval();
         } else if (view === "textarea") {
           that.fromComposerToTextarea(true);
           stopInterval();
+	  that.editor.fire("external_change_view",view);
         }
       });
 
