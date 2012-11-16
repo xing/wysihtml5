@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+
+<meta http-equiv="X-UA-Compatible" content="IE=Edge">
+<meta charset="utf-8">
+
+<title>wysihtml5 - Ace Demo</title>
+
+<style>
+  body {
+    font-family: Verdana;
+    font-size: 11px;
+  }
+  
+  h2 {
+    margin-bottom: 0;
+  }
+  
+  small {
+    display: block;
+    margin-top: 40px;
+    font-size: 9px;
+  }
+  
+  small,
+  small a {
+    color: #666;
+  }
+  
+  a {
+    color: #000;
+    text-decoration: underline;
+    cursor: pointer;
+  }
+  
+  #toolbar [data-wysihtml5-action] {
+    float: right;
+    margin-right: 10px;
+  }
+  
+  #toolbar,
+  textarea {
+    width: 600px;
+    padding: 5px;
+  }
+  
+  textarea {
+    height: 280px;
+    border: 2px solid green;
+    box-sizing: boder-box;
+    -webkit-box-sizing: border-box;
+    -ms-box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    font-family: Verdana;
+    font-size: 11px;
+  }
+  
+  textarea:focus {
+    color: black;
+    border: 2px solid black;
+  }
+  
+  .wysihtml5-command-active {
+    font-weight: bold;
+  }
+  
+  #ace-editor { display:hidden; }
+  
+</style>
+
+<h1>wysihtml5 coupled with <a href="http://ace.ajax.org/" target="_blank">Ace editor</a> Example</h1>
+
+<p>
+  Uses a custom rule set that allows the following elements: <em>strong, b, em, i, a, span</em><br>
+  Links will automatically receive <i>target="_blank"</i> and <i>rel="nofollow"</i>. Check the source code of this page.
+</p>
+
+<form>
+  <div id="toolbar" style="display: none;">
+    <a data-wysihtml5-command="bold" title="CTRL+B">bold</a> |
+    <a data-wysihtml5-command="italic" title="CTRL+I">italic</a>
+    <a data-wysihtml5-action="change_view">switch to html view</a>
+  </div>
+  <textarea id="textarea" placeholder="Enter text ..."><p><b>hello</b> <i>world</i> !</p></textarea>
+  <div id="ace-editor"></div>
+  <br><input type="reset" value="Reset form!">
+</form>
+
+<h2>Events:</h2>
+<div id="log"></div>
+
+<small>powered by <a href="https://github.com/xing/wysihtml5" target="_blank">wysihtml5</a>.</small>
+
+<script src="../parser_rules/simple.js"></script>
+<script src="../dist/wysihtml5-0.4.0pre.js"></script>
+
+<script src="http://code.jquery.com/jquery.min.js"></script>
+<script src="http://d1n0x3qji82z53.cloudfront.net/src-min-noconflict/ace.js"></script>
+
+<script>
+  var editor = new wysihtml5.Editor("textarea", {
+    toolbar:        "toolbar",
+    parserRules:    wysihtml5ParserRules,
+    useLineBreaks:  false
+  });
+  
+  var log = document.getElementById("log");
+  
+  editor
+    .on("load", function() {
+      log.innerHTML += "<div>load</div>";
+    })
+    .on("focus", function() {
+      log.innerHTML += "<div>focus</div>";
+    })
+    .on("blur", function() {
+      log.innerHTML += "<div>blur</div>";
+    })
+    .on("change", function() {
+      log.innerHTML += "<div>change</div>";
+    })
+    .on("paste", function() {
+      log.innerHTML += "<div>paste</div>";
+    })
+    .on("newword:composer", function() {
+      log.innerHTML += "<div>newword:composer</div>";
+    })
+    .on("undo:composer", function() {
+      log.innerHTML += "<div>undo:composer</div>";
+    })
+    .on("redo:composer", function() {
+      log.innerHTML += "<div>redo:composer</div>";
+    });
+    
+    $(document).ready(function()
+    {	var $ace = $("#ace-editor");
+	var $area = $("textarea");
+	$ace.css({position:"absolute"}).hide();
+	var aceeditor = 42;
+
+	editor.on("external_change_view", function(view)
+	{	if(view === "textarea")
+		{	$ace.show();
+			
+			if(aceeditor == 42)
+			{	$ace.css({zIndex:11111,opacity:1,background:"white"});
+				$ace.offset($area.offset()).width($area.outerWidth()).height($area.outerHeight());
+				$ace.html("");
+				aceeditor = ace.edit("ace-editor");
+				aceeditor.setTheme("ace/theme/chrome");
+				aceeditor.getSession().setMode("ace/mode/html");
+			}
+			
+			aceeditor.setValue(editor.textarea.getValue());
+			aceeditor.clearSelection();
+		} else {
+			editor.textarea.setValue(aceeditor.getValue());
+			aceeditor.setValue(""); $ace.hide();
+		}    
+	});
+    });
+</script>
