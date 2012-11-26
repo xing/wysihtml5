@@ -576,6 +576,24 @@ if (wysihtml5.browser.supported()) {
       "'mailto:' urls are not stripped"
     );
   });
+
+  test("Check style attributes", function() {
+    var rules = {
+      tags: {
+        span: {
+          check_attributes: {
+            "style": "style"
+          }
+        }
+      }
+    };
+
+    this.equal(
+      this.sanitize('<span style="font-weight:bold">bar</span>', rules),
+      '<span style="font-weight:bold">bar</span>',
+      "custom style attributes are not stripped"
+    );
+  });
   
   test("Check custom data attributes", function() {
     var rules = {
