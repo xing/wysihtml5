@@ -24,6 +24,7 @@
        *    (^|[\>\(\{\[\s\>])
        */
       URL_REG_EXP           = /((https?:\/\/|www\.)[^\s<]{3,})/gi,
+      EMAIL_REG_EXP         = /^\w+@[a-zA-Z_]+?\.[a-zA-Z]{2,3}$/,
       TRAILING_CHAR_REG_EXP = /([^\w\/\-](,?))$/i,
       MAX_DISPLAY_LENGTH    = 100,
       BRACKETS              = { ")": "(", "]": "[", "}": "{" };
@@ -67,6 +68,31 @@
       return '<a href="' + realUrl + '">' + displayUrl + '</a>' + punctuation;
     });
   }
+
+  /**
+    * This is a copy of the _convertUrlsToLinks function to add mailto: to email addresses
+    */
+  function _convertEmailsToLinks(str) {
+    return str.replace(EMAIL_REG_EXP, function(url) {
+      var punctuation = (url.match(TRAILING_CHAR_REG_EXP) || [])[1] || "",
+          opening     = BRACKETS[punctuation];
+      url = url.replace(TRAILING_CHAR_REG_EXP, "");
+
+      if (url.split(opening).length > url.split(punctuation).length) {
+        url = url + punctuation;
+        punctuation = "";
+      }
+      var realUrl    = url,
+          displayUrl = url;
+      if (url.length > MAX_DISPLAY_LENGTH) {
+        displayUrl = displayUrl.substr(0, MAX_DISPLAY_LENGTH) + "...";
+      }
+      // Add http prefix if necessary
+      realUrl = "mailto:" + realUrl;
+      
+      return '<a href="' + realUrl + '">' + displayUrl + '</a>' + punctuation;
+    });
+  }
   
   /**
    * Creates or (if already cached) returns a temp element
@@ -90,6 +116,25 @@
     // We need to insert an empty/temporary <span /> to fix IE quirks
     // Elsewise IE would strip white space in the beginning
     tempElement.innerHTML = "<span></span>" + _convertUrlsToLinks(textNode.data);
+    tempElement.removeChild(tempElement.firstChild);
+    
+    while (tempElement.firstChild) {
+      // inserts tempElement.firstChild before textNode
+      parentNode.insertBefore(tempElement.firstChild, textNode);
+    }
+    parentNode.removeChild(textNode);
+  }
+
+  /**
+   * Replaces the original text nodes with the newly auto-mail dom tree
+   */
+  function _wrapEmailMatchesInNode(textNode) {
+    var parentNode  = textNode.parentNode,
+        tempElement = _getTempElement(parentNode.ownerDocument);
+    
+    // We need to insert an empty/temporary <span /> to fix IE quirks
+    // Elsewise IE would strip white space in the beginning
+    tempElement.innerHTML = "<span></span>" + _convertEmailsToLinks(textNode.data);
     tempElement.removeChild(tempElement.firstChild);
     
     while (tempElement.firstChild) {
@@ -122,6 +167,11 @@
       _wrapMatchesInNode(element);
       return;
     }
+
+    if (element.nodeType === wysihtml5.TEXT_NODE && element.data.match(EMAIL_REG_EXP)) {
+      _wrapEmailMatchesInNode(element);
+      return;
+    }
     
     var childNodes        = wysihtml5.lang.array(element.childNodes).get(),
         childNodesLength  = childNodes.length,
@@ -138,4 +188,5 @@
   
   // Reveal url reg exp to the outside
   wysihtml5.dom.autoLink.URL_REG_EXP = URL_REG_EXP;
+  wysihtml5.dom.autoLink.EMAIL_REG_EXP = EMAIL_REG_EXP;
 })(wysihtml5);
