@@ -153,10 +153,10 @@
           iframeWindow   = iframe.contentWindow,
           iframeDocument = iframe.contentWindow.document,
           charset        = doc.characterSet || doc.charset || "utf-8",
-          sandboxHtml    = this._getHtml({
-            charset:      charset,
-            stylesheets:  this.config.stylesheets
-          });
+          sandboxHtml    = this.config.html || this._getHtml({
+                                                              charset:      charset,
+                                                              stylesheets:  this.config.stylesheets
+                                                            });
 
       // Create the basic dom tree including proper DOCTYPE and charset
       iframeDocument.open("text/html", "replace");
