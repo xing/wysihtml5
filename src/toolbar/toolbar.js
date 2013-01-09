@@ -200,7 +200,7 @@
 
       // Needed for opera and chrome. We track all observables so we can destroy same. NF
       that.dom_observables.push(
-         dom.delegate(container, "[data-wysihtml5-command], [data-wysihtml5-action]", "mousedown", function(event) { event.preventDefault(); });
+         dom.delegate(container, "[data-wysihtml5-command], [data-wysihtml5-action]", "mousedown", function(event) { event.preventDefault(); })
       );
 
       that.dom_observables.push(
@@ -210,7 +210,7 @@
               commandValue  = link.getAttribute("data-wysihtml5-command-value");
           that.execCommand(command, commandValue);
           event.preventDefault();
-        });
+        })
       );
 
       that.dom_observables.push(
@@ -218,7 +218,7 @@
           var action = this.getAttribute("data-wysihtml5-action");
           that.execAction(action);
           event.preventDefault();
-        });
+        })
       );
 
       var _setInterval = function() {
