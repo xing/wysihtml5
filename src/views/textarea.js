@@ -16,7 +16,7 @@ wysihtml5.views.Textarea = wysihtml5.views.View.extend(
     var value = this.isEmpty() ? "" : this.element.value;
     // Be smarter about special character sequences that don't end in a semicolon and escape them
     // e.g. &curren -> &amp;curren
-    value = value.replace(/&(?![^\s]+;)/g, '&amp;');
+    value = value.replace(/&(?!\w+;)/g, '&amp;');
     
     if (parse) {
       value = this.parent.parse(value);
