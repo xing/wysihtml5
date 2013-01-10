@@ -275,9 +275,9 @@ if (wysihtml5.browser.supported()) {
         equal(composerElement.innerHTML.toLowerCase(), "hey <strong>richard!</strong>", "Textarea sanitized and copied over it's value to the editor after switch");
         
         editor.fire("change_view", "textarea");
-        that.textareaElement.value = "&curren &curren;";
+        that.textareaElement.value = "&curren &curren &curren;";
         editor.fire("change_view", "composer");
-        equal(composerElement.innerHTML.toLowerCase(), "&amp;curren ¤", "Textarea escaped ampersand in unclosed special character sequence after switch");
+        equal(composerElement.innerHTML.toLowerCase(), "&amp;curren &amp;curren ¤", "Textarea escaped ampersand in unclosed special character sequences after switch");
         
         composerElement.innerHTML = "<i>hey </i><strong>timmay!</strong>";
         QUnit.triggerEvent(that.form, "submit");
