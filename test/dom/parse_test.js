@@ -172,7 +172,8 @@ if (wysihtml5.browser.supported()) {
         '<a href="ftp://google.com"></a>' +
         '<a href="[some_fa_macro]"></a>' +
         '<a href="[some_fa_macro] "></a>' +
-        '<a href=" [some_fa_macro]"></a>',
+        '<a href=" [some_fa_macro]"></a>' +
+        '<a href="[invalid-macro]"></a>',
         rules
       ),
       '<a href="/foobar"></a>' +
@@ -182,6 +183,7 @@ if (wysihtml5.browser.supported()) {
       '<a></a>' +
       '<a></a>' +
       '<a href="[some_fa_macro]"></a>' +
+      '<a></a>' +
       '<a></a>' +
       '<a></a>'
     );
