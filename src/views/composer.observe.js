@@ -81,7 +81,7 @@
 
     // --------- Make sure that images are selected when clicking on them ---------
     if (!browser.canSelectImagesInContentEditable()) {
-      dom.observe(element, "mousedown", function(event) {
+      dom.observe(element, "click", function(event) {
         var target = event.target;
         if (target.nodeName === "IMG") {
           that.selection.selectNode(target);
