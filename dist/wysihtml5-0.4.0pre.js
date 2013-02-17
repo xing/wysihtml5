@@ -5074,7 +5074,7 @@ wysihtml5.dom.parse = (function() {
     })(),
 
     src: (function() {
-      var REG_EXP = /^(\/|https?:\/\/)/i;
+      var REG_EXP = /^((\/|https?:\/\/|")|data:image\/(gif|png|jpeg);base64,)/i;
       return function(attributeValue) {
         if (!attributeValue || !attributeValue.match(REG_EXP)) {
           return null;
