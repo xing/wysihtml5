@@ -36,6 +36,7 @@ var wysihtml5ParserRules = {
     /**
      * CSS Class white-list
      * Following CSS classes won't be removed when parsed by the wysihtml5 HTML parser
+     "classes": { "*":1 } will allow all classes to be carried over, otheriwse only those whitelisted
      */
     "classes": {
         "wysiwyg-clear-both": 1,
@@ -85,7 +86,7 @@ var wysihtml5ParserRules = {
      *                          - clear_br:    converts clear attribute values left/right/all/both to their corresponding css class "wysiwyg-clear-*"
      *                            <br clear="all"> ... becomes ... <br class="wysiwyg-clear-both">
      *                          - align_img:    converts align attribute values (right/left) on <img> to their corresponding css class "wysiwyg-float-*"
-     *                          
+     *
      *    - remove:             removes the element and its content
      *
      *    - rename_tag:         renames the element to the given tag
