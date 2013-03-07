@@ -365,7 +365,12 @@
 
       
       dom.observe(this.doc, "keydown", function(event) {
-        var keyCode = event.keyCode;
+        var keyCode       = event.keyCode,
+            blockElement  = dom.getParentElement(that.selection.getSelectedNode(), { nodeName: USE_NATIVE_LINE_BREAK_INSIDE_TAGS }, 4);
+
+        if (!blockElement && !that.config.useLineBreaks && keyCode === wysihtml5.ENTER_KEY) {
+          that.commands.exec("formatBlock", "p");
+        }
         
         if (event.shiftKey) {
           return;
@@ -375,7 +380,6 @@
           return;
         }
         
-        var blockElement = dom.getParentElement(that.selection.getSelectedNode(), { nodeName: USE_NATIVE_LINE_BREAK_INSIDE_TAGS }, 4);
         if (blockElement) {
           setTimeout(function() {
             // Unwrap paragraph after leaving a list or a H1-6
@@ -398,10 +402,7 @@
               adjust(selectedNode);
             }
           }, 0);
-          return;
-        }
-        
-        if (that.config.useLineBreaks && keyCode === wysihtml5.ENTER_KEY && !wysihtml5.browser.insertsLineBreaksOnReturn()) {
+        } else if (that.config.useLineBreaks && keyCode === wysihtml5.ENTER_KEY && !wysihtml5.browser.insertsLineBreaksOnReturn()) {
           that.commands.exec("insertLineBreak");
           event.preventDefault();
         }
