@@ -106,18 +106,16 @@
       var data    = this.elementToChange || {},
           fields  = this.container.querySelectorAll(SELECTOR_FIELDS),
           length  = fields.length,
-          dataField = null,
           i       = 0;
       for (; i<length; i++) {
-        dataField = data[fields[i].getAttribute(ATTRIBUTE_FIELDS)];
         if (fields[i].type == "checkbox") {
           if (fields[i].checked) {
-            dataField = fields[i].value;
+            data[fields[i].getAttribute(ATTRIBUTE_FIELDS)] = fields[i].value;
           } else {
-            dataField = "";
+            data[fields[i].getAttribute(ATTRIBUTE_FIELDS)] = "";
           }
         } else {
-          dataField = fields[i].value;
+          data[fields[i].getAttribute(ATTRIBUTE_FIELDS)] = fields[i].value;
         }
       }
       return data;
