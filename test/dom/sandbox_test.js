@@ -183,6 +183,8 @@ asyncTest("Check X-UA-Compatible", function() {
         docMode             = doc.documentMode;
     
     ok(doc.documentMode === document.documentMode, "iFrame is in in the same document mode as the parent site");
-    start();
+    setTimeout(function() {
+      start();
+    }, 2000);
   }).insertInto(document.body);
 });
