@@ -8432,6 +8432,7 @@ wysihtml5.views.View = Base.extend(
 (function(wysihtml5) {
   var dom       = wysihtml5.dom,
       browser   = wysihtml5.browser,
+      ctrlDown  = 0,	  
       /**
        * Map keyCodes to query commands
        */
@@ -8555,13 +8556,28 @@ wysihtml5.views.View = Base.extend(
     }
     
     // --------- Shortcut logic ---------
+    dom.observe(element, "keyup", function(event) {
+      var keyCode  = event ? event.which : window.event.keyCode
+      // note: keyup will not work with "event.ctrlKey"
+      if (17 == keyCode || 19 == keyCode) {
+        console.log('Ctrl key released. Setting ctrlDown = 0.');
+        ctrlDown = 0;
+      }
+    });
+
     dom.observe(element, "keydown", function(event) {
       var keyCode  = event ? event.which : window.event.keyCode,
           command  = shortcuts[keyCode];
-      if (85 == keyCode) {
+      if (1 == event.ctrlKey) {
+        console.log('Ctrl key pressed. Setting ctrlDown = 1.');
+        ctrlDown = 1;
+      }
+      if (85 == keyCode && 1 == ctrlDown) {
+        console.log('keyCode 85 pressed ("U" char), but ctrl key still down too.');
         return event.preventDefault(), !1;
       }
-      if ((event.ctrlKey || event.metaKey) && !event.altKey && command) {
+      if (1 == ctrlDown && !event.altKey && command) {
+        console.log('keyCode ' + keyCode + ' pressed and ctrl key is still down too.');
         that.commands.exec(command), event.preventDefault();
       }
     });
