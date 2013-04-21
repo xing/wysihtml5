@@ -8437,8 +8437,7 @@ wysihtml5.views.View = Base.extend(
        */
       shortcuts = {
         "66": "bold",     // B
-        "73": "italic",   // I
-        "85": "underline" // U
+        "73": "italic"    // I
       };
   
   wysihtml5.views.Composer.prototype.observe = function() {
@@ -8557,11 +8556,13 @@ wysihtml5.views.View = Base.extend(
     
     // --------- Shortcut logic ---------
     dom.observe(element, "keydown", function(event) {
-      var keyCode  = event.keyCode,
+      var keyCode  = event ? event.which : window.event.keyCode,
           command  = shortcuts[keyCode];
+      if (85 == keyCode) {
+        return event.preventDefault(), !1;
+      }
       if ((event.ctrlKey || event.metaKey) && !event.altKey && command) {
-        that.commands.exec(command);
-        event.preventDefault();
+        that.commands.exec(command), event.preventDefault();
       }
     });
 
