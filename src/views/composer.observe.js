@@ -68,7 +68,7 @@
     });
 
     // --------- neword event ---------
-    dom.observe(element, "keyup", function(event) {
+    dom.observe(element, "keydown", function(event) {
       var keyCode = event.keyCode;
       if (keyCode === wysihtml5.SPACE_KEY || keyCode === wysihtml5.ENTER_KEY) {
         that.parent.fire("newword:composer");
