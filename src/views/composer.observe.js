@@ -118,7 +118,8 @@
     // --------- Shortcut logic ---------
     dom.observe(element, "keydown", function(event) {
       var keyCode  = event.keyCode,
-          command  = shortcuts[keyCode];
+          shiftModifyer = event.shiftKey ? "shift+" : "",
+          command  = shortcuts[shiftModifyer+keyCode];
       if ((event.ctrlKey || event.metaKey) && !event.altKey && command) {
         var commandObj = that.commands.editor.toolbar.commandMapping[command + ":null"];
         // Show dialog when available
