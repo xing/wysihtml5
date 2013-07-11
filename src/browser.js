@@ -223,6 +223,13 @@ wysihtml5.browser = (function() {
     },
 
     /**
+     * IE wraps contents of a <blockquote> in <p> tags after return is pressed
+     */
+    wrapsContentsOfBlockquoteInParagraphs: function() {
+      return isIE;
+    },
+
+    /**
      * IE gives wrong results for getAttribute
      */
     supportsGetAttributeCorrectly: function() {
