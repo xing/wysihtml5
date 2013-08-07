@@ -505,8 +505,34 @@ if (wysihtml5.browser.supported()) {
       start();
     });
   });
-  
-  
+
+
+  asyncTest("Check for javascripts", function() {
+    expect(3);
+
+    var that = this;
+
+    var javascriptUrls = [
+      "http://yui.yahooapis.com/2.9.0/build/yahoo-dom-event/yahoo-dom-event.js",
+      "http://yui.yahooapis.com/2.9.0/build/animation/animation-min.js"
+    ];
+
+    var editor = new wysihtml5.Editor(this.textareaElement, {
+      javascripts: javascriptUrls
+    });
+
+    editor.on("load", function() {
+      var iframeElement   = that.getIframeElement(),
+          iframeDoc       = iframeElement.contentWindow.document,
+          scriptElements  = iframeDoc.getElementsByTagName("script");
+      equal(scriptElements.length, 2, "Correct amount of javascripts inserted into the dom tree");
+      equal(scriptElements[0].getAttribute("src"), javascriptUrls[0]);
+      equal(scriptElements[1].getAttribute("src"), javascriptUrls[1]);
+      start();
+    });
+  });
+
+
   asyncTest("Check config.supportTouchDevices = false", function() {
     expect(2);
     
