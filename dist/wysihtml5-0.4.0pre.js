@@ -5557,6 +5557,8 @@ wysihtml5.dom.replaceWithChildNodes = function(node) {
       this.getWindow = function() { return iframe.contentWindow; };
       this.getDocument = function() { return iframe.contentWindow.document; };
 
+      this._insertJavascripts();
+
       // Catch js errors and pass them to the parent's onerror event
       // addEventListener("error") doesn't work properly in some browsers
       // TODO: apparently this doesn't work in IE9!
@@ -5612,6 +5614,26 @@ wysihtml5.dom.replaceWithChildNodes = function(node) {
         + '<body></body></html>'
       ).interpolate(templateVars);
     },
+
+    _insertJavascripts: function() {
+      var script      = null,
+          doc         = this.getDocument(),
+          head        = doc.head,
+          javascripts = this.config.javascripts,
+          i           = 0;
+
+      javascripts = typeof(javascripts) === "string" ? [javascripts] : javascripts;
+
+      if (javascripts) {
+        length = javascripts.length;
+        for (; i<length; i++) {
+          script = doc.createElement("script");
+          script.src = javascripts[i];
+          head.appendChild(script);
+        }
+      }
+    },
+
 
     /**
      * Method to unset/override existing variables
@@ -8015,7 +8037,8 @@ wysihtml5.views.View = Base.extend(
       this.sandbox = new dom.Sandbox(function() {
         that._create();
       }, {
-        stylesheets:  this.config.stylesheets
+        stylesheets:  this.config.stylesheets,
+        javascripts:  this.config.javascripts
       });
       this.iframe  = this.sandbox.getIframe();
       
@@ -9499,6 +9522,8 @@ wysihtml5.views.Textarea = wysihtml5.views.View.extend(
     useLineBreaks:        true,
     // Array (or single string) of stylesheet urls to be loaded in the editor's iframe
     stylesheets:          [],
+    // Array (or single string) of javascript urls to be loaded in the editor's iframe
+    javascripts:          [],
     // Placeholder text to use, defaults to the placeholder attribute on the textarea element
     placeholderText:      undef,
     // Whether the rich text editor should be rendered on touch devices (wysihtml5 >= 0.3.0 comes with basic support for iOS 5)
