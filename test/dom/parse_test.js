@@ -121,11 +121,15 @@ if (wysihtml5.browser.supported()) {
     this.equal(
       this.sanitize(
         '<img src="http://url.gif">' +
+        '<img src="//same_protocol.gif">' +
         '<img src="/path/to/absolute%20href.gif">' +
         '<img src="mango time">',
         rules
       ),
-      '<img src="http://url.gif"><img><img>'
+      '<img src="http://url.gif">' +
+      '<img src="//same_protocol.gif">' +
+      '<img>' +
+      '<img>'
     );
   });
 
@@ -142,12 +146,14 @@ if (wysihtml5.browser.supported()) {
       this.sanitize(
         '<img src="HTTP://url.gif">' +
         '<img src="/path/to/absolute%20href.gif">' +
+        '<img src="//same_protocol.gif">' +
         '<img src="mailto:christopher@foobar.com">' +
         '<img src="mango time">',
         rules
       ),
       '<img src="http://url.gif">' +
       '<img src="/path/to/absolute%20href.gif">' +
+      '<img src="//same_protocol.gif">' +
       '<img>' +
       '<img>'
     );
@@ -167,6 +173,7 @@ if (wysihtml5.browser.supported()) {
         '<a href="/foobar"></a>' +
         '<a href="HTTPS://google.com"></a>' +
         '<a href="http://google.com"></a>' +
+        '<a href="//google.com"></a>' +
         '<a href="MAILTO:christopher@foobar.com"></a>' +
         '<a href="mango time"></a>' +
         '<a href="ftp://google.com"></a>',
@@ -175,6 +182,7 @@ if (wysihtml5.browser.supported()) {
       '<a href="/foobar"></a>' +
       '<a href="https://google.com"></a>' +
       '<a href="http://google.com"></a>' +
+      '<a href="//google.com"></a>' +
       '<a href="mailto:christopher@foobar.com"></a>' +
       '<a></a>' +
       '<a></a>'
