@@ -45,6 +45,7 @@ JS_FILES = src/wysihtml5.js \
   src/selection/html_applier.js \
   src/commands.js \
   src/commands/bold.js \
+  src/commands/strikethrough.js \
   src/commands/createLink.js \
   src/commands/fontSize.js \
   src/commands/foreColor.js \
