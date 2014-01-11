@@ -173,6 +173,7 @@
       this._observe();
       this._interpolate();
       if (elementToChange) {
+        if (this.interval) clearInterval(this.interval);
         this.interval = setInterval(function() { that._interpolate(true); }, 500);
       }
       dom.addClass(this.link, CLASS_NAME_OPENED);
