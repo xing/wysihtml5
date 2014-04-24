@@ -7,10 +7,11 @@
 
 <link rel="stylesheet" href="http://code.jquery.com/qunit/qunit-git.css">
 
-<script src="http://code.jquery.com/qunit/qunit-git.js"></script>
+<script src="http://code.jquery.com/qunit/qunit-1.12.0.js"></script>
 
 <script src="../src/wysihtml5.js"></script>
 <script src="../lib/rangy/rangy-core.js"></script>
+<script src="../lib/rangy/rangy-selectionsaverestore.js"></script>
 <script src="../lib/base/base.js"></script>
 <script src="../src/browser.js"></script>
 <script src="../src/lang/array.js"></script>
@@ -19,6 +20,7 @@
 <script src="../src/lang/string.js"></script>
 <script src="../src/dom/auto_link.js"></script>
 <script src="../src/dom/class.js"></script>
+<script src="../src/dom/compare_document_position.js"></script>
 <script src="../src/dom/contains.js"></script>
 <script src="../src/dom/convert_to_list.js"></script>
 <script src="../src/dom/copy_attributes.js"></script>
@@ -26,7 +28,10 @@
 <script src="../src/dom/delegate.js"></script>
 <script src="../src/dom/get_as_dom.js"></script>
 <script src="../src/dom/get_parent_element.js"></script>
+<script src="../src/dom/get_next_element.js"></script>
+<script src="../src/dom/get_previous_element.js"></script>
 <script src="../src/dom/get_style.js"></script>
+<script src="../src/dom/get_textnodes.js"></script>
 <script src="../src/dom/has_element_with_tag_name.js"></script>
 <script src="../src/dom/has_element_with_class_name.js"></script>
 <script src="../src/dom/insert.js"></script>
@@ -42,19 +47,26 @@
 <script src="../src/dom/set_styles.js"></script>
 <script src="../src/dom/simulate_placeholder.js"></script>
 <script src="../src/dom/text_content.js"></script>
+<script src="../src/dom/get_attribute.js"></script>
+<script src="../src/dom/table.js"></script>
+<script src="../src/dom/query.js"></script>
 <script src="../src/quirks/clean_pasted_html.js"></script>
 <script src="../src/quirks/ensure_proper_clearing.js"></script>
 <script src="../src/quirks/get_correct_inner_html.js"></script>
 <script src="../src/quirks/redraw.js"></script>
+<script src="../src/quirks/table_cells_selection.js"></script>
 <script src="../src/selection/selection.js"></script>
 <script src="../src/selection/html_applier.js"></script>
 <script src="../src/commands.js"></script>
 <script src="../src/commands/bold.js"></script>
 <script src="../src/commands/createLink.js"></script>
+<script src="../src/commands/removeLink.js"></script>
 <script src="../src/commands/fontSize.js"></script>
 <script src="../src/commands/foreColor.js"></script>
+<script src="../src/commands/foreColorStyle.js"></script>
 <script src="../src/commands/formatBlock.js"></script>
 <script src="../src/commands/formatInline.js"></script>
+<script src="../src/commands/formatCode.js"></script>
 <script src="../src/commands/insertHTML.js"></script>
 <script src="../src/commands/insertImage.js"></script>
 <script src="../src/commands/insertLineBreak.js"></script>
@@ -68,6 +80,10 @@
 <script src="../src/commands/redo.js"></script>
 <script src="../src/commands/underline.js"></script>
 <script src="../src/commands/undo.js"></script>
+<script src="../src/commands/addTableCells.js"></script>
+<script src="../src/commands/createTable.js"></script>
+<script src="../src/commands/deleteTableCells.js"></script>
+<script src="../src/commands/mergeTableCells.js"></script>
 <script src="../src/undo_manager.js"></script>
 <script src="../src/views/view.js"></script>
 <script src="../src/views/composer.js"></script>
@@ -76,9 +92,15 @@
 <script src="../src/views/synchronizer.js"></script>
 <script src="../src/views/textarea.js"></script>
 <script src="../src/toolbar/dialog.js"></script>
+<script src="../src/toolbar/dialog_foreColorStyle.js"></script>
+<script src="../src/toolbar/dialog_createTable.js"></script>
 <script src="../src/toolbar/speech.js"></script>
 <script src="../src/toolbar/toolbar.js"></script>
 <script src="../src/editor.js"></script>
+
+<!-- additions for iflameless  -->
+<script src="../src/dom/contenteditable_area.js"></script>
+<!-- -->
 
 <script src="../src/assert/html_equal.js"></script>
 
@@ -93,6 +115,7 @@
       '<script src="lang/object_test.js"><\/script>'                      +
       '<script src="lang/string_test.js"><\/script>'                      +
       '<script src="dom/auto_link_test.js"><\/script>'                    +
+      '<script src="dom/compare_document_position_test.js"><\/script>'    +
       '<script src="dom/contains_test.js"><\/script>'                     +
       '<script src="dom/convert_to_list_test.js"><\/script>'              +
       '<script src="dom/copy_styles_test.js"><\/script>'                  +
@@ -102,6 +125,7 @@
       '<script src="dom/observe_test.js"><\/script>'                      +
       '<script src="dom/get_as_dom_test.js"><\/script>'                   +
       '<script src="dom/get_parent_element_test.js"><\/script>'           +
+      '<script src="dom/get_next_previous_element.js"><\/script>'         +
       '<script src="dom/get_style_test.js"><\/script>'                    +
       '<script src="dom/has_element_with_tag_name_test.js"><\/script>'    +
       '<script src="dom/has_element_with_class_name_test.js"><\/script>'  +
@@ -111,9 +135,12 @@
       '<script src="dom/set_styles_test.js"><\/script>'                   +
       '<script src="dom/set_attributes_test.js"><\/script>'               +
       '<script src="dom/parse_test.js"><\/script>'                        +
+      '<script src="dom/table_test.js"><\/script>'                        +
       '<script src="quirks/clean_pasted_html_test.js"><\/script>'         +
       '<script src="undo_manager_test.js"><\/script>'                     +
-      '<script src="editor_test.js"><\/script>'
+      '<script src="editor_test.js"><\/script>'                           +
+      '<script src="editor_contenteditablemode_test.js"><\/script>'       +
+      '<script src="editor_commands_test.js"><\/script>'
     );
   }
 </script>

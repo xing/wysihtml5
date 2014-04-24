@@ -1,0 +1,30 @@
+{
+  "name": "wysihtml5x",
+  "version": "0.4.4",
+  "devDependencies": {
+    "grunt": "~0.4.4",
+    "grunt-contrib-jshint": "~0.6.3",
+    "grunt-contrib-nodeunit": "~0.2.0",
+    "grunt-contrib-uglify": "~0.3.0",
+    "grunt-contrib-concat": "~0.4.0"
+  },
+  "description": "h1. wysihtml5x 0.4.1",
+  "main": "Gruntfile.js",
+  "directories": {
+    "example": "examples",
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/Edicy/wysihtml5"
+  },
+  "author": "XING AG",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Edicy/wysihtml5/issues"
+  },
+  "homepage": "https://github.com/Edicy/wysihtml5"
+}

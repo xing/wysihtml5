@@ -49,8 +49,9 @@
  *    });
  *    // => '<p class="red">foo</p><p>bar</p>'
  */
+
 wysihtml5.dom.parse = (function() {
-  
+
   /**
    * It's not possible to use a XMLParser/DOMParser as HTML5 is not always well-formed XML
    * new DOMParser().parseFromString('<img src="foo.gif">') will cause a parseError since the
@@ -66,46 +67,51 @@ wysihtml5.dom.parse = (function() {
       DEFAULT_NODE_NAME   = "span",
       WHITE_SPACE_REG_EXP = /\s+/,
       defaultRules        = { tags: {}, classes: {} },
-      currentRules        = {};
-  
+      currentRules        = {},
+      uneditableClass     = false;
+
   /**
    * Iterates over all childs of the element, recreates them, appends them into a document fragment
    * which later replaces the entire body content
    */
-  function parse(elementOrHtml, rules, context, cleanUp) {
-    wysihtml5.lang.object(currentRules).merge(defaultRules).merge(rules).get();
-    
-    context           = context || elementOrHtml.ownerDocument || document;
-    var fragment      = context.createDocumentFragment(),
+   function parse(elementOrHtml, config) {
+    wysihtml5.lang.object(currentRules).merge(defaultRules).merge(config.rules).get();
+
+    var context       = config.context || elementOrHtml.ownerDocument || document,
+        fragment      = context.createDocumentFragment(),
         isString      = typeof(elementOrHtml) === "string",
         element,
         newNode,
         firstChild;
-    
+
+    if (config.uneditableClass) {
+      uneditableClass = config.uneditableClass;
+    }
+
     if (isString) {
       element = wysihtml5.dom.getAsDom(elementOrHtml, context);
     } else {
       element = elementOrHtml;
     }
-    
+
     while (element.firstChild) {
       firstChild = element.firstChild;
-      newNode = _convert(firstChild, cleanUp);
+      newNode = _convert(firstChild, config.cleanUp);
       element.removeChild(firstChild);
       if (newNode) {
         fragment.appendChild(newNode);
       }
     }
-    
+
     // Clear element contents
     element.innerHTML = "";
-    
+
     // Insert new DOM tree
     element.appendChild(fragment);
-    
+
     return isString ? wysihtml5.quirks.getCorrectInnerHTML(element) : element;
   }
-  
+
   function _convert(oldNode, cleanUp) {
     var oldNodeType     = oldNode.nodeType,
         oldChilds       = oldNode.childNodes,
@@ -115,41 +121,87 @@ wysihtml5.dom.parse = (function() {
         fragment,
         newNode,
         newChild;
-    
-    newNode = method && method(oldNode);
-    
-    if (!newNode) {
-      return null;
+
+    if (uneditableClass && oldNodeType === 1 && wysihtml5.dom.hasClass(oldNode, uneditableClass)) {
+        return oldNode;
     }
-    
+
+    newNode = method && method(oldNode);
+
+    if (!newNode) {
+        if (newNode === false) {
+            // false defines that tag should be removed but contents should remain (unwrap)
+            fragment = oldNode.ownerDocument.createDocumentFragment();
+
+            for (i = oldChildsLength; i--;) {
+              newChild = _convert(oldChilds[i], cleanUp);
+              if (newChild) {
+                fragment.insertBefore(newChild, fragment.firstChild);
+              }
+            }
+
+            // TODO: try to minimize surplus spaces
+            if (wysihtml5.lang.array([
+                "div", "pre", "p",
+                "table", "td", "th",
+                "ul", "ol", "li",
+                "dd", "dl",
+                "footer", "header", "section",
+                "h1", "h2", "h3", "h4", "h5", "h6"
+            ]).contains(oldNode.nodeName.toLowerCase()) && oldNode.parentNode.lastChild !== oldNode) {
+                // add space at first when unwraping non-textflow elements
+                if (!oldNode.nextSibling || oldNode.nextSibling.nodeType !== 3 || !(/^\s/).test(oldNode.nextSibling.nodeValue)) {
+                  fragment.appendChild(oldNode.ownerDocument.createTextNode(" "));
+                }
+            }
+
+            if (fragment.normalize) {
+              fragment.normalize();
+            }
+            return fragment;
+        } else {
+            return null;
+        }
+    }
+
     for (i=0; i<oldChildsLength; i++) {
       newChild = _convert(oldChilds[i], cleanUp);
       if (newChild) {
         newNode.appendChild(newChild);
       }
     }
-    
+
     // Cleanup senseless <span> elements
     if (cleanUp &&
         newNode.nodeName.toLowerCase() === DEFAULT_NODE_NAME &&
-        (!newNode.childNodes.length || !newNode.attributes.length)) {
+        (!newNode.childNodes.length ||
+         ((/^\s*$/gi).test(newNode.innerHTML) && oldNode.className !== "_wysihtml5-temp-placeholder") ||
+         !newNode.attributes.length)
+        ) {
       fragment = newNode.ownerDocument.createDocumentFragment();
       while (newNode.firstChild) {
         fragment.appendChild(newNode.firstChild);
       }
+      if (fragment.normalize) {
+        fragment.normalize();
+      }
       return fragment;
     }
-    
+
+    if (newNode.normalize) {
+      newNode.normalize();
+    }
     return newNode;
   }
-  
+
   function _handleElement(oldNode) {
     var rule,
         newNode,
         tagRules    = currentRules.tags,
         nodeName    = oldNode.nodeName.toLowerCase(),
         scopeName   = oldNode.scopeName;
-    
+
+
     /**
      * We already parsed that element
      * ignore it! (yes, this sometimes happens in IE8 when the html is invalid)
@@ -158,11 +210,11 @@ wysihtml5.dom.parse = (function() {
       return null;
     }
     oldNode._wysihtml5 = 1;
-    
+
     if (oldNode.className === "wysihtml5-temp") {
       return null;
     }
-    
+
     /**
      * IE is the only browser who doesn't include the namespace in the
      * nodeName, that's why we have to prepend it by ourselves
@@ -172,7 +224,6 @@ wysihtml5.dom.parse = (function() {
     if (scopeName && scopeName != "HTML") {
       nodeName = scopeName + ":" + nodeName;
     }
-    
     /**
      * Repair node
      * IE is a bit bitchy when it comes to invalid nested markup which includes unclosed tags
@@ -185,13 +236,21 @@ wysihtml5.dom.parse = (function() {
         nodeName = "div";
       }
     }
-    
+
     if (nodeName in tagRules) {
       rule = tagRules[nodeName];
       if (!rule || rule.remove) {
         return null;
+      } else if (rule.unwrap) {
+        return false;
       }
-      
+
+      // tests if type condition is met or node should be removed/unwrapped
+
+      if (rule.one_of_type && !_testTypes(oldNode, currentRules, rule.one_of_type)) {
+        return (rule.remove_action && rule.remove_action == "unwrap") ? false : null;
+      }
+
       rule = typeof(rule) === "string" ? { rename_tag: rule } : rule;
     } else if (oldNode.firstChild) {
       rule = { rename_tag: DEFAULT_NODE_NAME };
@@ -199,14 +258,117 @@ wysihtml5.dom.parse = (function() {
       // Remove empty unknown elements
       return null;
     }
-    
     newNode = oldNode.ownerDocument.createElement(rule.rename_tag || nodeName);
     _handleAttributes(oldNode, newNode, rule);
-    
+    _handleStyles(oldNode, newNode, rule);
     oldNode = null;
+
+    if (newNode.normalize) { newNode.normalize(); }
     return newNode;
   }
-  
+
+  function _testTypes(oldNode, rules, types) {
+    var definition, type;
+
+    // do not interfere with placeholder span or pasting caret position is not maintained
+    if (oldNode.nodeName === "SPAN" && oldNode.className === "_wysihtml5-temp-placeholder") {
+      return true;
+    }
+
+    for (type in types) {
+      if (types.hasOwnProperty(type) && rules.type_definitions && rules.type_definitions[type]) {
+        definition = rules.type_definitions[type];
+        if (_testType(oldNode, definition)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  function array_contains(a, obj) {
+      var i = a.length;
+      while (i--) {
+         if (a[i] === obj) {
+             return true;
+         }
+      }
+      return false;
+  }
+
+  function _testType(oldNode, definition) {
+
+    var nodeClasses = oldNode.getAttribute("class"),
+        nodeStyles =  oldNode.getAttribute("style"),
+        classesLength, s, s_corrected, a, attr, currentClass, styleProp;
+
+    // test for classes, if one found return true
+    if (nodeClasses && definition.classes) {
+      nodeClasses = nodeClasses.replace(/^\s+/g, '').replace(/\s+$/g, '').split(WHITE_SPACE_REG_EXP);
+      classesLength = nodeClasses.length;
+      for (var i = 0; i < classesLength; i++) {
+        if (definition.classes[nodeClasses[i]]) {
+          return true;
+        }
+      }
+    }
+
+    // test for styles, if one found return true
+    if (nodeStyles && definition.styles) {
+
+      nodeStyles = nodeStyles.split(';');
+      for (s in definition.styles) {
+        if (definition.styles.hasOwnProperty(s)) {
+          for (var sp = nodeStyles.length; sp--;) {
+            styleProp = nodeStyles[sp].split(':');
+
+            if (styleProp[0].replace(/\s/g, '').toLowerCase() === s) {
+              if (definition.styles[s] === true || styleProp[1].replace(/\s/g, '').toLowerCase() === definition.styles[s]) {
+                return true;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // test for attributes in general against regex match
+    if (definition.attrs) {
+        for (a in definition.attrs) {
+            if (definition.attrs.hasOwnProperty(a)) {
+                attr = _getAttribute(oldNode, a);
+                if (typeof(attr) === "string") {
+                    if (attr.search(definition.attrs[a]) > -1) {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+    return false;
+  }
+
+  function _handleStyles(oldNode, newNode, rule) {
+    var s;
+    if(rule && rule.keep_styles) {
+      for (s in rule.keep_styles) {
+        if (rule.keep_styles.hasOwnProperty(s)) {
+          if (s == "float") {
+            // IE compability
+            if (oldNode.style.styleFloat) {
+              newNode.style.styleFloat = oldNode.style.styleFloat;
+            }
+            if (oldNode.style.cssFloat) {
+              newNode.style.cssFloat = oldNode.style.cssFloat;
+            }
+           } else if (oldNode.style[s]) {
+             newNode.style[s] = oldNode.style[s];
+           }
+        }
+      }
+    }
+  }
+
   function _handleAttributes(oldNode, newNode, rule) {
     var attributes          = {},                         // fresh new set of attributes to set on newNode
         setClass            = rule.set_class,             // classes to set
@@ -226,28 +388,31 @@ wysihtml5.dom.parse = (function() {
         attributeName,
         newAttributeValue,
         method;
-    
+
     if (setAttributes) {
       attributes = wysihtml5.lang.object(setAttributes).clone();
     }
-    
+
     if (checkAttributes) {
       for (attributeName in checkAttributes) {
         method = attributeCheckMethods[checkAttributes[attributeName]];
         if (!method) {
           continue;
         }
-        newAttributeValue = method(_getAttribute(oldNode, attributeName));
-        if (typeof(newAttributeValue) === "string") {
-          attributes[attributeName] = newAttributeValue;
+        oldAttribute = _getAttribute(oldNode, attributeName);
+        if (oldAttribute || (attributeName === "alt" && oldNode.nodeName == "IMG")) {
+          newAttributeValue = method(oldAttribute);
+          if (typeof(newAttributeValue) === "string") {
+            attributes[attributeName] = newAttributeValue;
+          }
         }
       }
     }
-    
+
     if (setClass) {
       classes.push(setClass);
     }
-    
+
     if (addClass) {
       for (attributeName in addClass) {
         method = addClassMethods[addClass[attributeName]];
@@ -260,10 +425,10 @@ wysihtml5.dom.parse = (function() {
         }
       }
     }
-    
+
     // make sure that wysihtml5 temp class doesn't get stripped out
     allowedClasses["_wysihtml5-temp-placeholder"] = 1;
-    
+
     // add old classes last
     oldClasses = oldNode.getAttribute("class");
     if (oldClasses) {
@@ -276,7 +441,7 @@ wysihtml5.dom.parse = (function() {
         newClasses.push(currentClass);
       }
     }
-    
+
     // remove duplicate entries and preserve class specificity
     newClassesLength = newClasses.length;
     while (newClassesLength--) {
@@ -285,11 +450,11 @@ wysihtml5.dom.parse = (function() {
         newUniqueClasses.unshift(currentClass);
       }
     }
-    
+
     if (newUniqueClasses.length) {
       attributes["class"] = newUniqueClasses.join(" ");
     }
-    
+
     // set attributes on newNode
     for (attributeName in attributes) {
       // Setting attributes can cause a js error in IE under certain circumstances
@@ -299,7 +464,7 @@ wysihtml5.dom.parse = (function() {
         newNode.setAttribute(attributeName, attributes[attributeName]);
       } catch(e) {}
     }
-    
+
     // IE8 sometimes loses the width/height attributes when those are set before the "src"
     // so we make sure to set them again
     if (attributes.src) {
@@ -311,7 +476,7 @@ wysihtml5.dom.parse = (function() {
       }
     }
   }
-  
+
   /**
    * IE gives wrong results for hasAttribute/getAttribute, for example:
    *    var td = document.createElement("td");
@@ -334,13 +499,13 @@ wysihtml5.dom.parse = (function() {
       var outerHTML      = node.outerHTML.toLowerCase(),
           // TODO: This might not work for attributes without value: <input disabled>
           hasAttribute   = outerHTML.indexOf(" " + attributeName +  "=") != -1;
-      
+
       return hasAttribute ? node.getAttribute(attributeName) : null;
     } else{
       return node.getAttribute(attributeName);
     }
   }
-  
+
   /**
    * Check whether the given node is a proper loaded image
    * FIXME: Returns undefined when unknown (Chrome, Safari)
@@ -354,21 +519,21 @@ wysihtml5.dom.parse = (function() {
       }
     }
   }
-  
+
   var INVISIBLE_SPACE_REG_EXP = /\uFEFF/g;
   function _handleText(oldNode) {
     var nextSibling = oldNode.nextSibling;
     if (nextSibling && nextSibling.nodeType === wysihtml5.TEXT_NODE) {
       // Concatenate text nodes
-      nextSibling.data = oldNode.data + nextSibling.data;
+      nextSibling.data = oldNode.data.replace(INVISIBLE_SPACE_REG_EXP, "") + nextSibling.data.replace(INVISIBLE_SPACE_REG_EXP, "");
     } else {
       // \uFEFF = wysihtml5.INVISIBLE_SPACE (used as a hack in certain rich text editing situations)
       var data = oldNode.data.replace(INVISIBLE_SPACE_REG_EXP, "");
       return oldNode.ownerDocument.createTextNode(data);
-    } 
+    }
   }
-  
-  
+
+
   // ------------ attribute checks ------------ \\
   var attributeCheckMethods = {
     url: (function() {
@@ -396,7 +561,7 @@ wysihtml5.dom.parse = (function() {
     })(),
 
     href: (function() {
-      var REG_EXP = /^(\/|https?:\/\/|mailto:)/i;
+      var REG_EXP = /^(#|\/|https?:\/\/|mailto:)/i;
       return function(attributeValue) {
         if (!attributeValue || !attributeValue.match(REG_EXP)) {
           return null;
@@ -406,7 +571,7 @@ wysihtml5.dom.parse = (function() {
         });
       };
     })(),
-    
+
     alt: (function() {
       var REG_EXP = /[^ a-z0-9_\-]/gi;
       return function(attributeValue) {
@@ -416,16 +581,22 @@ wysihtml5.dom.parse = (function() {
         return attributeValue.replace(REG_EXP, "");
       };
     })(),
-    
+
     numbers: (function() {
       var REG_EXP = /\D/g;
       return function(attributeValue) {
         attributeValue = (attributeValue || "").replace(REG_EXP, "");
         return attributeValue || null;
       };
+    })(),
+
+    any: (function() {
+      return function(attributeValue) {
+        return attributeValue;
+      };
     })()
   };
-  
+
   // ------------ class converter (converts an html attribute to a class name) ------------ \\
   var addClassMethods = {
     align_img: (function() {
@@ -437,7 +608,7 @@ wysihtml5.dom.parse = (function() {
         return mapping[String(attributeValue).toLowerCase()];
       };
     })(),
-    
+
     align_text: (function() {
       var mapping = {
         left:     "wysiwyg-text-align-left",
@@ -449,7 +620,7 @@ wysihtml5.dom.parse = (function() {
         return mapping[String(attributeValue).toLowerCase()];
       };
     })(),
-    
+
     clear_br: (function() {
       var mapping = {
         left:   "wysiwyg-clear-left",
@@ -461,7 +632,7 @@ wysihtml5.dom.parse = (function() {
         return mapping[String(attributeValue).toLowerCase()];
       };
     })(),
-    
+
     size_font: (function() {
       var mapping = {
         "1": "wysiwyg-font-size-xx-small",
@@ -479,6 +650,6 @@ wysihtml5.dom.parse = (function() {
       };
     })()
   };
-  
+
   return parse;
 })();

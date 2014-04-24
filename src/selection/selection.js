@@ -6,7 +6,7 @@
  */
 (function(wysihtml5) {
   var dom = wysihtml5.dom;
-  
+
   function _getCumulativeOffsetTop(element) {
     var top = 0;
     if (element.parentNode) {
@@ -17,18 +17,20 @@
     }
     return top;
   }
-  
+
   wysihtml5.Selection = Base.extend(
     /** @scope wysihtml5.Selection.prototype */ {
-    constructor: function(editor) {
+    constructor: function(editor, contain, unselectableClass) {
       // Make sure that our external range library is initialized
       window.rangy.init();
-      
+
       this.editor   = editor;
       this.composer = editor.composer;
       this.doc      = this.composer.doc;
+      this.contain = contain;
+      this.unselectableClass = unselectableClass || false;
     },
-    
+
     /**
      * Get the current selection as a bookmark to be able to later restore it
      *
@@ -75,6 +77,7 @@
      */
     setAfter: function(node) {
       var range = rangy.createRange(this.doc);
+
       range.setStartAfter(node);
       range.setEndAfter(node);
       return this.setSelection(range);
@@ -145,57 +148,234 @@
       }
     },
 
+    getSelectedOwnNodes: function(controlRange) {
+      var selection,
+          ranges = this.getOwnRanges(),
+          ownNodes = [];
+
+      for (var i = 0, maxi = ranges.length; i < maxi; i++) {
+          ownNodes.push(ranges[i].commonAncestorContainer || this.doc.body);
+      }
+      return ownNodes;
+    },
+
+    findNodesInSelection: function(nodeTypes) {
+      var ranges = this.getOwnRanges(),
+          nodes = [], curNodes;
+      for (var i = 0, maxi = ranges.length; i < maxi; i++) {
+        curNodes = ranges[i].getNodes([1], function(node) {
+            return wysihtml5.lang.array(nodeTypes).contains(node.nodeName);
+        });
+        nodes = nodes.concat(curNodes);
+      }
+      return nodes;
+    },
+
+    containsUneditable: function() {
+      var uneditables = this.getOwnUneditables(),
+          selection = this.getSelection();
+
+      for (var i = 0, maxi = uneditables.length; i < maxi; i++) {
+        if (selection.containsNode(uneditables[i])) {
+          return true;
+        }
+      }
+
+      return false;
+    },
+
+    deleteContents: function()  {
+      var ranges = this.getOwnRanges();
+      for (var i = ranges.length; i--;) {
+        ranges[i].deleteContents();
+      }
+      this.setSelection(ranges[0]);
+    },
+
+    getPreviousNode: function(node, ignoreEmpty) {
+      if (!node) {
+        var selection = this.getSelection();
+        node = selection.anchorNode;
+      }
+
+      if (node === this.contain) {
+          return false;
+      }
+
+      var ret = node.previousSibling,
+          parent;
+
+      if (ret === this.contain) {
+          return false;
+      }
+
+      if (ret && ret.nodeType !== 3 && ret.nodeType !== 1) {
+         // do not count comments and other node types
+         ret = this.getPreviousNode(ret, ignoreEmpty);
+      } else if (ret && ret.nodeType === 3 && (/^\s*$/).test(ret.textContent)) {
+        // do not count empty textnodes as previus nodes
+        ret = this.getPreviousNode(ret, ignoreEmpty);
+      } else if (ignoreEmpty && ret && ret.nodeType === 1 && !wysihtml5.lang.array(["BR", "HR", "IMG"]).contains(ret.nodeName) && (/^[\s]*$/).test(ret.innerHTML)) {
+        // Do not count empty nodes if param set.
+        // Contenteditable tends to bypass and delete these silently when deleting with caret
+        ret = this.getPreviousNode(ret, ignoreEmpty);
+      } else if (!ret && node !== this.contain) {
+        parent = node.parentNode;
+        if (parent !== this.contain) {
+            ret = this.getPreviousNode(parent, ignoreEmpty);
+        }
+      }
+
+      return (ret !== this.contain) ? ret : false;
+    },
+
+    getRangeToNodeEnd: function() {
+      if (this.isCollapsed()) {
+        var range = this.getRange(),
+            sNode = range.startContainer,
+            pos = range.startOffset,
+            lastR = rangy.createRange(this.doc);
+
+        lastR.selectNodeContents(sNode);
+        lastR.setStart(sNode, pos);
+        return lastR;
+      }
+    },
+
+    caretIsLastInSelection: function() {
+      var r = rangy.createRange(this.doc),
+          s = this.getSelection(),
+          endc = this.getRangeToNodeEnd().cloneContents(),
+          endtxt = endc.textContent;
+
+      return (/^\s*$/).test(endtxt);
+    },
+
+    caretIsFirstInSelection: function() {
+      var r = rangy.createRange(this.doc),
+          s = this.getSelection();
+
+      r.selectNodeContents(this.getRange().commonAncestorContainer);
+      r.collapse(true);
+
+      return (this.isCollapsed() && (r.startContainer === s.anchorNode || r.endContainer === s.anchorNode) && r.startOffset === s.anchorOffset);
+    },
+
+    caretIsInTheBeginnig: function(ofNode) {
+        var selection = this.getSelection(),
+            node = selection.anchorNode,
+            offset = selection.anchorOffset;
+        if (ofNode) {
+          return (offset === 0 && (node.nodeName && node.nodeName === ofNode.toUpperCase() || wysihtml5.dom.getParentElement(node.parentNode, ofNode, 1)));
+        } else {
+          return (offset === 0 && !this.getPreviousNode(node, true));
+        }
+    },
+
+    caretIsBeforeUneditable: function() {
+      var selection = this.getSelection(),
+          node = selection.anchorNode,
+          offset = selection.anchorOffset;
+
+      if (offset === 0) {
+        var prevNode = this.getPreviousNode(node, true);
+        if (prevNode) {
+          var uneditables = this.getOwnUneditables();
+          for (var i = 0, maxi = uneditables.length; i < maxi; i++) {
+            if (prevNode === uneditables[i]) {
+              return uneditables[i];
+            }
+          }
+        }
+      }
+      return false;
+    },
+
+    // TODO: Figure out a method from following 3 that would work universally
+    executeAndRestoreRangy: function(method, restoreScrollPosition) {
+      var win = this.doc.defaultView || this.doc.parentWindow,
+          sel = rangy.saveSelection(win);
+
+      if (!sel) {
+        method();
+      } else {
+        try {
+          method();
+        } catch(e) {
+          setTimeout(function() { throw e; }, 0);
+        }
+      }
+      rangy.restoreSelection(sel);
+    },
+
+    // TODO: has problems in chrome 12. investigate block level and uneditable area inbetween
     executeAndRestore: function(method, restoreScrollPosition) {
       var body                  = this.doc.body,
           oldScrollTop          = restoreScrollPosition && body.scrollTop,
           oldScrollLeft         = restoreScrollPosition && body.scrollLeft,
           className             = "_wysihtml5-temp-placeholder",
           placeholderHtml       = '<span class="' + className + '">' + wysihtml5.INVISIBLE_SPACE + '</span>',
-          range                 = this.getRange(this.doc),
+          range                 = this.getRange(true),
           caretPlaceholder,
           newCaretPlaceholder,
-          nextSibling,
-          node,
+          nextSibling, prevSibling,
+          node, node2, range2,
           newRange;
-      
+
       // Nothing selected, execute and say goodbye
       if (!range) {
         method(body, body);
         return;
       }
-      
-      if (wysihtml5.browser.hasInsertNodeIssue()) {
-        this.doc.execCommand("insertHTML", false, placeholderHtml);
-      } else {
-        node = range.createContextualFragment(placeholderHtml);
-        range.insertNode(node);
+
+      if (!range.collapsed) {
+        range2 = range.cloneRange();
+        node2 = range2.createContextualFragment(placeholderHtml);
+        range2.collapse(false);
+        range2.insertNode(node2);
+        range2.detach();
       }
-      
+
+      node = range.createContextualFragment(placeholderHtml);
+      range.insertNode(node);
+
+      if (node2) {
+        caretPlaceholder = this.contain.querySelectorAll("." + className);
+        range.setStartBefore(caretPlaceholder[0]);
+        range.setEndAfter(caretPlaceholder[caretPlaceholder.length -1]);
+      }
+      this.setSelection(range);
+
       // Make sure that a potential error doesn't cause our placeholder element to be left as a placeholder
       try {
         method(range.startContainer, range.endContainer);
       } catch(e) {
         setTimeout(function() { throw e; }, 0);
       }
-      
-      caretPlaceholder = this.doc.querySelector("." + className);
-      if (caretPlaceholder) {
+      caretPlaceholder = this.contain.querySelectorAll("." + className);
+      if (caretPlaceholder && caretPlaceholder.length) {
         newRange = rangy.createRange(this.doc);
-        nextSibling = caretPlaceholder.nextSibling;
-        // Opera is so fucked up when you wanna set focus before a <br>
-        if (wysihtml5.browser.hasInsertNodeIssue() && nextSibling && nextSibling.nodeName === "BR") {
-          newCaretPlaceholder = this.doc.createTextNode(wysihtml5.INVISIBLE_SPACE);
-          dom.insert(newCaretPlaceholder).after(caretPlaceholder);
-          newRange.setStartBefore(newCaretPlaceholder);
-          newRange.setEndBefore(newCaretPlaceholder);
+        nextSibling = caretPlaceholder[0].nextSibling;
+        if (caretPlaceholder.length > 1) {
+          prevSibling = caretPlaceholder[caretPlaceholder.length -1].previousSibling;
+        }
+        if (prevSibling && nextSibling) {
+          newRange.setStartBefore(nextSibling);
+          newRange.setEndAfter(prevSibling);
         } else {
-          newRange.selectNode(caretPlaceholder);
-          newRange.deleteContents();
+          newCaretPlaceholder = this.doc.createTextNode(wysihtml5.INVISIBLE_SPACE);
+          dom.insert(newCaretPlaceholder).after(caretPlaceholder[0]);
+          newRange.setStartBefore(newCaretPlaceholder);
+          newRange.setEndAfter(newCaretPlaceholder);
         }
         this.setSelection(newRange);
+        for (var i = caretPlaceholder.length; i--;) {
+         caretPlaceholder[i].parentNode.removeChild(caretPlaceholder[i]);
+        }
+
       } else {
         // fallback for when all hell breaks loose
-        body.focus();
+        this.contain.focus();
       }
 
       if (restoreScrollPosition) {
@@ -251,13 +431,13 @@
       try { newRange.setEnd(rangeBackup.endContainer, rangeBackup.endOffset); } catch(e2) {}
       try { this.setSelection(newRange); } catch(e3) {}
     },
-    
+
     set: function(node, offset) {
       var newRange = rangy.createRange(this.doc);
       newRange.setStart(node, offset || 0);
       this.setSelection(newRange);
     },
-    
+
     /**
      * Insert html at the caret position and move the cursor after the inserted html
      *
@@ -269,6 +449,7 @@
       var range     = rangy.createRange(this.doc),
           node      = range.createContextualFragment(html),
           lastChild = node.lastChild;
+
       this.insertNode(node);
       if (lastChild) {
         this.setAfter(lastChild);
@@ -294,21 +475,67 @@
      *
      * @param {Object} node The node to surround the selected elements with
      */
-    surround: function(node) {
-      var range = this.getRange();
-      if (!range) {
-        return;
+    surround: function(nodeOptions) {
+      var ranges = this.getOwnRanges(),
+          node, nodes = [];
+      if (ranges.length == 0) {
+        return nodes;
       }
 
-      try {
-        // This only works when the range boundaries are not overlapping other elements
-        range.surroundContents(node);
-        this.selectNode(node);
-      } catch(e) {
-        // fallback
-        node.appendChild(range.extractContents());
-        range.insertNode(node);
+      for (var i = ranges.length; i--;) {
+        node = this.doc.createElement(nodeOptions.nodeName);
+        nodes.push(node);
+        if (nodeOptions.className) {
+          node.className = nodeOptions.className;
+        }
+        try {
+          // This only works when the range boundaries are not overlapping other elements
+          ranges[i].surroundContents(node);
+          this.selectNode(node);
+        } catch(e) {
+          // fallback
+          node.appendChild(ranges[i].extractContents());
+          ranges[i].insertNode(node);
+        }
       }
+      return nodes;
+    },
+
+    deblockAndSurround: function(nodeOptions) {
+      var tempElement = this.doc.createElement('div'),
+          range = rangy.createRange(this.doc),
+          tempDivElements,
+          tempElements,
+          firstChild;
+
+      tempElement.className = nodeOptions.className;
+
+      this.composer.commands.exec("formatBlock", nodeOptions.nodeName, nodeOptions.className);
+      tempDivElements = this.contain.querySelectorAll("." + nodeOptions.className);
+      if (tempDivElements[0]) {
+        tempDivElements[0].parentNode.insertBefore(tempElement, tempDivElements[0]);
+
+        range.setStartBefore(tempDivElements[0]);
+        range.setEndAfter(tempDivElements[tempDivElements.length - 1]);
+        tempElements = range.extractContents();
+
+        while (tempElements.firstChild) {
+          firstChild = tempElements.firstChild;
+          if (firstChild.nodeType == 1 && wysihtml5.dom.hasClass(firstChild, nodeOptions.className)) {
+            while (firstChild.firstChild) {
+              tempElement.appendChild(firstChild.firstChild);
+            }
+            if (firstChild.nodeName !== "BR") { tempElement.appendChild(this.doc.createElement('br')); }
+            tempElements.removeChild(firstChild);
+          } else {
+            tempElement.appendChild(firstChild);
+          }
+        }
+      } else {
+        tempElement = null;
+      }
+
+      return tempElement;
     },
 
     /**
@@ -357,7 +584,7 @@
     _selectLine_W3C: function() {
       var win       = this.doc.defaultView,
           selection = win.getSelection();
-      selection.modify("extend", "left", "lineboundary");
+      selection.modify("move", "left", "lineboundary");
       selection.modify("extend", "right", "lineboundary");
     },
 
@@ -421,10 +648,105 @@
         return [];
       }
     },
-    
-    getRange: function() {
-      var selection = this.getSelection();
-      return selection && selection.rangeCount && selection.getRangeAt(0);
+
+    fixRangeOverflow: function(range) {
+      if (this.contain && this.contain.firstChild && range) {
+        var containment = range.compareNode(this.contain);
+        if (containment !== 2) {
+          if (containment === 1) {
+            range.setStartBefore(this.contain.firstChild);
+          }
+          if (containment === 0) {
+            range.setEndAfter(this.contain.lastChild);
+          }
+          if (containment === 3) {
+            range.setStartBefore(this.contain.firstChild);
+            range.setEndAfter(this.contain.lastChild);
+          }
+        } else if (this._detectInlineRangeProblems(range)) {
+          var previousElementSibling = range.endContainer.previousElementSibling;
+          if (previousElementSibling) {
+            range.setEnd(previousElementSibling, this._endOffsetForNode(previousElementSibling));
+          }
+        }
+      }
+    },
+
+    _endOffsetForNode: function(node) {
+      var range = document.createRange()
+      range.selectNodeContents(node)
+      return range.endOffset;
+    },
+
+    _detectInlineRangeProblems: function(range) {
+      position = dom.compareDocumentPosition(range.startContainer, range.endContainer);
+      return (
+        range.endOffset == 0 &&
+        position & 4 //Node.DOCUMENT_POSITION_FOLLOWING
+      );
+    },
+
+    getRange: function(dontFix) {
+      var selection = this.getSelection(),
+          range = selection && selection.rangeCount && selection.getRangeAt(0);
+
+      if (dontFix !== true) {
+        this.fixRangeOverflow(range);
+      }
+
+      return range;
+    },
+
+    getOwnUneditables: function() {
+      var allUneditables = dom.query(this.contain, '.' + this.unselectableClass),
+          deepUneditables = dom.query(allUneditables, '.' + this.unselectableClass);
+
+      return wysihtml5.lang.array(allUneditables).without(deepUneditables);
+    },
+
+    // Returns an array of ranges that belong only to this editable
+    // Needed as uneditable block in contenteditabel can split range into pieces
+    // If manipulating content reverse loop is usually needed as manipulation can shift subsequent ranges
+    getOwnRanges: function()  {
+      var ranges = [],
+          r = this.getRange(),
+          tmpRanges;
+
+      if (r) { ranges.push(r); }
+
+      if (this.unselectableClass && this.contain && r) {
+          var uneditables = this.getOwnUneditables(),
+              tmpRange;
+          if (uneditables.length > 0) {
+            for (var i = 0, imax = uneditables.length; i < imax; i++) {
+              tmpRanges = [];
+              for (var j = 0, jmax = ranges.length; j < jmax; j++) {
+                if (ranges[j]) {
+                  switch (ranges[j].compareNode(uneditables[i])) {
+                    case 2:
+                      // all selection inside uneditable. remove
+                    break;
+                    case 3:
+                      //section begins before and ends after uneditable. spilt
+                      tmpRange = ranges[j].cloneRange();
+                      tmpRange.setEndBefore(uneditables[i]);
+                      tmpRanges.push(tmpRange);
+
+                      tmpRange = ranges[j].cloneRange();
+                      tmpRange.setStartAfter(uneditables[i]);
+                      tmpRanges.push(tmpRange);
+                    break;
+                    default:
+                      // in all other cases uneditable does not touch selection. dont modify
+                      tmpRanges.push(ranges[j]);
+                  }
+                }
+                ranges = tmpRanges;
+              }
+            }
+          }
+      }
+      return ranges;
     },
 
     getSelection: function() {
@@ -435,7 +757,20 @@
       var win       = this.doc.defaultView || this.doc.parentWindow,
           selection = rangy.getSelection(win);
       return selection.setSingleRange(range);
+    },
+
+    createRange: function() {
+      return rangy.createRange(this.doc);
+    },
+
+    isCollapsed: function() {
+        return this.getSelection().isCollapsed;
+    },
+
+    deselect: function() {
+      var sel = this.getSelection();
+      sel && sel.removeAllRanges();
     }
   });
-  
+
 })(wysihtml5);

@@ -5,12 +5,12 @@
  *      abcdefg|
  *   output:
  *      abcdefg<b>|</b>
- *   
+ *
  *   #2 unformatted text selected:
  *      abc|deg|h
  *   output:
  *      abc<b>|deg|</b>h
- *   
+ *
  *   #3 unformatted text selected across boundaries:
  *      ab|c <span>defg|h</span>
  *   output:
@@ -40,34 +40,77 @@
         "i":      "em"
       },
       htmlApplier = {};
-  
+
   function _getTagNames(tagName) {
     var alias = ALIAS_MAPPING[tagName];
     return alias ? [tagName.toLowerCase(), alias.toLowerCase()] : [tagName.toLowerCase()];
   }
-  
-  function _getApplier(tagName, className, classRegExp) {
+
+  function _getApplier(tagName, className, classRegExp, cssStyle, styleRegExp) {
     var identifier = tagName + ":" + className;
+    if (cssStyle) {
+      identifier += ":" + cssStyle;
+    }
     if (!htmlApplier[identifier]) {
-      htmlApplier[identifier] = new wysihtml5.selection.HTMLApplier(_getTagNames(tagName), className, classRegExp, true);
+      htmlApplier[identifier] = new wysihtml5.selection.HTMLApplier(_getTagNames(tagName), className, classRegExp, true, cssStyle, styleRegExp);
     }
     return htmlApplier[identifier];
   }
-  
+
   wysihtml5.commands.formatInline = {
-    exec: function(composer, command, tagName, className, classRegExp) {
-      var range = composer.selection.getRange();
-      if (!range) {
+    exec: function(composer, command, tagName, className, classRegExp, cssStyle, styleRegExp, dontRestoreSelect, noCleanup) {
+      var range = composer.selection.createRange();
+          ownRanges = composer.selection.getOwnRanges();
+
+      if (!ownRanges || ownRanges.length == 0) {
         return false;
       }
-      _getApplier(tagName, className, classRegExp).toggleRange(range);
-      composer.selection.setSelection(range);
+      composer.selection.getSelection().removeAllRanges();
+      _getApplier(tagName, className, classRegExp, cssStyle, styleRegExp).toggleRange(ownRanges);
+      range.setStart(ownRanges[0].startContainer,  ownRanges[0].startOffset);
+      range.setEnd(
+        ownRanges[ownRanges.length - 1].endContainer,
+        ownRanges[ownRanges.length - 1].endOffset
+      );
+      if (!noCleanup) {
+        if (!dontRestoreSelect) {
+          composer.selection.setSelection(range);
+          composer.selection.executeAndRestore(function() {
+            composer.cleanUp();
+          }, true, true);
+        } else {
+          composer.cleanUp();
+        }
+      }
     },
 
-    state: function(composer, command, tagName, className, classRegExp) {
+    // Executes so that if collapsed caret is in a state and executing that state it should unformat that state
+    // It is achieved by selecting the entire state element before executing.
+    // This works on built in contenteditable inline format commands
+    execWithToggle: function(composer, command, tagName, className, classRegExp, cssStyle, styleRegExp) {
+      var that = this;
+
+      if (this.state(composer, command, tagName, className, classRegExp, cssStyle, styleRegExp) &&
+          composer.selection.isCollapsed() &&
+          !composer.selection.caretIsLastInSelection() &&
+          !composer.selection.caretIsFirstInSelection()
+      ) {
+
+        var state_element = that.state(composer, command, tagName, className, classRegExp)[0];
+        composer.selection.executeAndRestoreSimple(function() {
+          var parent = state_element.parentNode;
+          composer.selection.selectNode(state_element, true);
+          wysihtml5.commands.formatInline.exec(composer, command, tagName, className, classRegExp, cssStyle, styleRegExp, true, true);
+        });
+      } else {
+        wysihtml5.commands.formatInline.exec(composer, command, tagName, className, classRegExp, cssStyle, styleRegExp);
+      }
+    },
+
+    state: function(composer, command, tagName, className, classRegExp, cssStyle, styleRegExp) {
       var doc           = composer.doc,
           aliasTagName  = ALIAS_MAPPING[tagName] || tagName,
-          range;
+          ownRanges;
 
       // Check whether the document contains a node with the desired tagName
       if (!wysihtml5.dom.hasElementWithTagName(doc, tagName) &&
@@ -80,12 +123,13 @@
          return false;
       }
 
-      range = composer.selection.getRange();
-      if (!range) {
+      ownRanges = composer.selection.getOwnRanges();
+
+      if (ownRanges.length == 0) {
         return false;
       }
 
-      return _getApplier(tagName, className, classRegExp).isAppliedToRange(range);
+      return _getApplier(tagName, className, classRegExp, cssStyle, styleRegExp).isAppliedToRange(ownRanges);
     }
   };
 })(wysihtml5);

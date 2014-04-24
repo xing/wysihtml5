@@ -11,11 +11,11 @@ wysihtml5.lang.object = function(obj) {
       }
       return this;
     },
-    
+
     get: function() {
       return obj;
     },
-    
+
     /**
      * @example
      *    wysihtml5.lang.object({ foo: 1 }).clone();
@@ -29,7 +29,7 @@ wysihtml5.lang.object = function(obj) {
       }
       return newObj;
     },
-    
+
     /**
      * @example
      *    wysihtml5.lang.object([]).isArray();

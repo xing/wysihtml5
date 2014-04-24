@@ -1,2 +1,6 @@
 .tm_sync.config
 .idea
+.DS_Store
+.DS_Store?
+node_modules
+.tm_properties

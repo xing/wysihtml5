@@ -17,28 +17,141 @@
         "73": "italic",   // I
         "85": "underline" // U
       };
-  
+
+  var deleteAroundEditable = function(selection, uneditable, element) {
+    // merge node with previous node from uneditable
+    var prevNode = selection.getPreviousNode(uneditable, true),
+        curNode = selection.getSelectedNode();
+
+    if (curNode.nodeType !== 1 && curNode.parentNode !== element) { curNode = curNode.parentNode; }
+    if (prevNode) {
+      if (curNode.nodeType == 1) {
+        var first = curNode.firstChild;
+
+        if (prevNode.nodeType == 1) {
+          while (curNode.firstChild) {
+            prevNode.appendChild(curNode.firstChild);
+          }
+        } else {
+          while (curNode.firstChild) {
+            uneditable.parentNode.insertBefore(curNode.firstChild, uneditable);
+          }
+        }
+        if (curNode.parentNode) {
+          curNode.parentNode.removeChild(curNode);
+        }
+        selection.setBefore(first);
+      } else {
+        if (prevNode.nodeType == 1) {
+          prevNode.appendChild(curNode);
+        } else {
+          uneditable.parentNode.insertBefore(curNode, uneditable);
+        }
+        selection.setBefore(curNode);
+      }
+    }
+  };
+
+  var handleDeleteKeyPress = function(selection, element) {
+    if (selection.isCollapsed()) {
+      if (selection.caretIsInTheBeginnig()) {
+        event.preventDefault();
+      } else {
+        var beforeUneditable = selection.caretIsBeforeUneditable();
+
+        // Do a special delete if caret would delete uneditable
+        if (beforeUneditable) {
+          event.preventDefault();
+          deleteAroundEditable(selection, beforeUneditable, element);
+        }
+      }
+    } else if (selection.containsUneditable()) {
+      event.preventDefault();
+      selection.deleteContents();
+    }
+  };
+
+  var tryToPushLiLevel = function(selection) {
+    var prevLi;
+    selection.executeAndRestoreRangy(function() {
+      var selNode = selection.getSelectedNode(),
+          liNode = (selNode.nodeName && selNode.nodeName === 'LI') ? selNode : selNode.parentNode,
+          listTag, list;
+
+      if (liNode.getAttribute('class') === "rangySelectionBoundary") {
+        liNode = liNode.parentNode;
+      }
+
+      if (liNode.nodeName === 'LI') {
+        listTag = (liNode.parentNode.nodeName === 'OL') ? 'OL' : 'UL';
+        list = selNode.ownerDocument.createElement(listTag);
+        prevLi = wysihtml5.dom.getPreviousElement(liNode);
+
+        if (prevLi) {
+          list.appendChild(liNode);
+          prevLi.appendChild(list);
+        }
+      }
+
+    });
+    return (prevLi) ? true : false;
+  };
+
+
+  var handleTabKeyDown = function(composer, element) {
+    if (!composer.selection.isCollapsed()) {
+      composer.selection.deleteContents();
+    } else if (composer.selection.caretIsInTheBeginnig('LI')) {
+      if (tryToPushLiLevel(composer.selection)) return;
+    }
+
+    // Is &emsp; close enough to tab. Could not find enough counter arguments for now.
+    composer.commands.exec("insertHTML", "&emsp;");
+  };
+
   wysihtml5.views.Composer.prototype.observe = function() {
     var that                = this,
         state               = this.getValue(),
-        iframe              = this.sandbox.getIframe(),
+        container           = (this.sandbox.getIframe) ? this.sandbox.getIframe() : this.sandbox.getContentEditable(),
         element             = this.element,
-        focusBlurElement    = browser.supportsEventsInIframeCorrectly() ? element : this.sandbox.getWindow(),
-        pasteEvents         = ["drop", "paste"];
+        focusBlurElement    = (browser.supportsEventsInIframeCorrectly() || this.sandbox.getContentEditable) ? element : this.sandbox.getWindow(),
+        pasteEvents         = ["drop", "paste"],
+        interactionEvents   = ["drop", "paste", "mouseup", "focus", "keyup"];
 
     // --------- destroy:composer event ---------
-    dom.observe(iframe, "DOMNodeRemoved", function() {
+    dom.observe(container, "DOMNodeRemoved", function() {
       clearInterval(domNodeRemovedInterval);
       that.parent.fire("destroy:composer");
     });
 
     // DOMNodeRemoved event is not supported in IE 8
-    var domNodeRemovedInterval = setInterval(function() {
-      if (!dom.contains(document.documentElement, iframe)) {
-        clearInterval(domNodeRemovedInterval);
-        that.parent.fire("destroy:composer");
+    if (!browser.supportsMutationEvents()) {
+        var domNodeRemovedInterval = setInterval(function() {
+          if (!dom.contains(document.documentElement, container)) {
+            clearInterval(domNodeRemovedInterval);
+            that.parent.fire("destroy:composer");
+          }
+        }, 250);
+    }
+
+    // --------- User interaction tracking --
+
+    dom.observe(focusBlurElement, interactionEvents, function() {
+      setTimeout(function() {
+        that.parent.fire("interaction").fire("interaction:composer");
+      }, 0);
+    });
+
+
+    if (this.config.handleTables) {
+      if(this.doc.execCommand && wysihtml5.browser.supportsCommand(this.doc, "enableObjectResizing") && wysihtml5.browser.supportsCommand(this.doc, "enableInlineTableEditing")) {
+        setTimeout(function() {
+          that.doc.execCommand("enableObjectResizing", false, "false");
+          that.doc.execCommand("enableInlineTableEditing", false, "false");
+        }, 0);
       }
-    }, 250);
+      this.tableSelection = wysihtml5.quirks.tableCellsSelection(element, that.parent);
+    }
 
     // --------- Focus & blur logic ---------
     dom.observe(focusBlurElement, "focus", function() {
@@ -83,23 +196,35 @@
     if (!browser.canSelectImagesInContentEditable()) {
       dom.observe(element, "mousedown", function(event) {
         var target = event.target;
-        if (target.nodeName === "IMG") {
+        var allImages = element.querySelectorAll('img'),
+            notMyImages = element.querySelectorAll('.' + that.config.uneditableContainerClassname + ' img'),
+            myImages = wysihtml5.lang.array(allImages).without(notMyImages);
+
+        if (target.nodeName === "IMG" && wysihtml5.lang.array(myImages).contains(target)) {
           that.selection.selectNode(target);
-          event.preventDefault();
         }
       });
     }
-    
+
+    if (!browser.canSelectImagesInContentEditable()) {
+        dom.observe(element, "drop", function(event) {
+            // TODO: if I knew how to get dropped elements list from event I could limit it to only IMG element case
+            setTimeout(function() {
+                that.selection.getSelection().removeAllRanges();
+            }, 0);
+        });
+    }
+
     if (browser.hasHistoryIssue() && browser.supportsSelectionModify()) {
       dom.observe(element, "keydown", function(event) {
         if (!event.metaKey && !event.ctrlKey) {
           return;
         }
-        
+
         var keyCode   = event.keyCode,
             win       = element.ownerDocument.defaultView,
             selection = win.getSelection();
-        
+
         if (keyCode === 37 || keyCode === 39) {
           if (keyCode === 37) {
             selection.modify("extend", "left", "lineboundary");
@@ -117,7 +242,7 @@
         }
       });
     }
-    
+
     // --------- Shortcut logic ---------
     dom.observe(element, "keydown", function(event) {
       var keyCode  = event.keyCode,
@@ -125,6 +250,13 @@
       if ((event.ctrlKey || event.metaKey) && !event.altKey && command) {
         that.commands.exec(command);
         event.preventDefault();
+      }
+      if (keyCode === 8) {
+        // delete key
+        handleDeleteKeyPress(that.selection, element);
+      } else if (keyCode === 9) {
+        event.preventDefault();
+        handleTabKeyDown(that, element);
       }
     });
 
@@ -146,10 +278,10 @@
         event.preventDefault();
       }
     });
-    
+
     // --------- IE 8+9 focus the editor when the iframe is clicked (without actually firing the 'focus' event on the <body>) ---------
-    if (browser.hasIframeFocusIssue()) {
-      dom.observe(this.iframe, "focus", function() {
+    if (!this.config.contentEditableMode && browser.hasIframeFocusIssue()) {
+      dom.observe(container, "focus", function() {
         setTimeout(function() {
           if (that.doc.querySelector(":focus") !== that.element) {
             that.focus();
@@ -163,13 +295,13 @@
         }, 0);
       });
     }
-    
+
     // --------- Show url in tooltip when hovering links or images ---------
     var titlePrefixes = {
       IMG: "Image: ",
       A:   "Link: "
     };
-    
+
     dom.observe(element, "mouseover", function(event) {
       var target   = event.target,
           nodeName = target.nodeName,

@@ -180,11 +180,11 @@ var wysihtml5ParserRules = {
         },
         "a": {
             "check_attributes": {
+                "target": "any",
                 "href": "url" // if you compiled master manually then change this from 'url' to 'href'
             },
             "set_attributes": {
-                "rel": "nofollow",
-                "target": "_blank"
+                "rel": "nofollow"
             }
         },
         "img": {

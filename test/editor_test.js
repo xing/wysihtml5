@@ -431,10 +431,10 @@ if (wysihtml5.browser.supported()) {
     
     var editor = new wysihtml5.Editor(this.textareaElement, {
       parserRules: parserRules,
-      parser:      function(html, rules, context) {
+      parser:      function(html, config) {
         equal(html.toLowerCase(), input, "HTML passed into parser is equal to the one which just got inserted");
-        equal(rules, parserRules, "Rules passed into parser are equal to those given to the editor");
-        equal(context, that.getIframeElement().contentWindow.document, "Context passed into parser is equal the document object of the editor's iframe");
+        equal(config.rules, parserRules, "Rules passed into parser are equal to those given to the editor");
+        equal(config.context, that.getIframeElement().contentWindow.document, "Context passed into parser is equal the document object of the editor's iframe");
         return html.replace(/\<script\>.*?\<\/script\>/gi, "");
       }
     });

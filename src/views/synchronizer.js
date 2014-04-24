@@ -3,7 +3,7 @@
  */
 (function(wysihtml5) {
   var INTERVAL = 400;
-  
+
   wysihtml5.views.Synchronizer = Base.extend(
     /** @scope wysihtml5.views.Synchronizer.prototype */ {
 

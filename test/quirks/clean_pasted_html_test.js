@@ -8,4 +8,12 @@ if (wysihtml5.browser.supported()) {
       "Correctly removed <u> within <a>"
     );
   });
+
+  test("Non-breakable space test", function() {
+    wysihtml5.assert.htmlEqual(
+      wysihtml5.quirks.cleanPastedHTML("test&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"),
+      "test &nbsp; &nbsp; ",
+      "Correctly split nonbreakable spaces"
+    );
+  });
 }
