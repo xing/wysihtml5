@@ -3485,7 +3485,7 @@ wysihtml5.browser = (function() {
      * Firefox on OSX navigates through history when hitting CMD + Arrow right/left
      */
     hasHistoryIssue: function() {
-      return isGecko;
+      return isGecko && navigator.platform.substr(0, 3) === "Mac";
     },
 
     /**
@@ -3725,6 +3725,18 @@ wysihtml5.browser = (function() {
      */
     hasIframeFocusIssue: function() {
       return isIE;
+    },
+    
+    /**
+     * Chrome + Safari create invalid nested markup after paste
+     * 
+     *  <p>
+     *    foo
+     *    <p>bar</p> <!-- BOO! -->
+     *  </p>
+     */
+    createsNestedInvalidMarkupAfterPaste: function() {
+      return isWebKit;
     }
   };
 })();wysihtml5.lang.array = function(arr) {
@@ -3876,7 +3888,14 @@ wysihtml5.browser = (function() {
   };
 };(function() {
   var WHITE_SPACE_START = /^\s+/,
-      WHITE_SPACE_END   = /\s+$/;
+      WHITE_SPACE_END   = /\s+$/,
+      ENTITY_REG_EXP    = /[&<>"]/g,
+      ENTITY_MAP = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': "&quot;"
+      };
   wysihtml5.lang.string = function(str) {
     str = String(str);
     return {
@@ -3912,6 +3931,15 @@ wysihtml5.browser = (function() {
             return str.split(search).join(replace);
           }
         };
+      },
+      
+      /**
+       * @example
+       *    wysihtml5.lang.string("hello<br>").escapeHTML();
+       *    // => "hello&lt;br&gt;"
+       */
+      escapeHTML: function() {
+        return str.replace(ENTITY_REG_EXP, function(c) { return ENTITY_MAP[c]; });
       }
     };
   };
@@ -4002,11 +4030,12 @@ wysihtml5.browser = (function() {
    */
   function _wrapMatchesInNode(textNode) {
     var parentNode  = textNode.parentNode,
+        nodeValue   = wysihtml5.lang.string(textNode.data).escapeHTML(),
         tempElement = _getTempElement(parentNode.ownerDocument);
     
     // We need to insert an empty/temporary <span /> to fix IE quirks
     // Elsewise IE would strip white space in the beginning
-    tempElement.innerHTML = "<span></span>" + _convertUrlsToLinks(textNode.data);
+    tempElement.innerHTML = "<span></span>" + _convertUrlsToLinks(nodeValue);
     tempElement.removeChild(tempElement.firstChild);
     
     while (tempElement.firstChild) {
@@ -4792,9 +4821,9 @@ wysihtml5.dom.parse = (function() {
     }
     
     while (element.firstChild) {
-      firstChild  = element.firstChild;
-      element.removeChild(firstChild);
+      firstChild = element.firstChild;
       newNode = _convert(firstChild, cleanUp);
+      element.removeChild(firstChild);
       if (newNode) {
         fragment.appendChild(newNode);
       }
@@ -4815,6 +4844,7 @@ wysihtml5.dom.parse = (function() {
         oldChildsLength = oldChilds.length,
         method          = NODE_TYPE_MAPPING[oldNodeType],
         i               = 0,
+        fragment,
         newNode,
         newChild;
     
@@ -4833,10 +4863,13 @@ wysihtml5.dom.parse = (function() {
     
     // Cleanup senseless <span> elements
     if (cleanUp &&
-        newNode.childNodes.length <= 1 &&
         newNode.nodeName.toLowerCase() === DEFAULT_NODE_NAME &&
-        !newNode.attributes.length) {
-      return newNode.firstChild;
+        (!newNode.childNodes.length || !newNode.attributes.length)) {
+      fragment = newNode.ownerDocument.createDocumentFragment();
+      while (newNode.firstChild) {
+        fragment.appendChild(newNode.firstChild);
+      }
+      return fragment;
     }
     
     return newNode;
@@ -5054,8 +5087,17 @@ wysihtml5.dom.parse = (function() {
     }
   }
   
+  var INVISIBLE_SPACE_REG_EXP = /\uFEFF/g;
   function _handleText(oldNode) {
-    return oldNode.ownerDocument.createTextNode(oldNode.data);
+    var nextSibling = oldNode.nextSibling;
+    if (nextSibling && nextSibling.nodeType === wysihtml5.TEXT_NODE) {
+      // Concatenate text nodes
+      nextSibling.data = oldNode.data + nextSibling.data;
+    } else {
+      // \uFEFF = wysihtml5.INVISIBLE_SPACE (used as a hack in certain rich text editing situations)
+      var data = oldNode.data.replace(INVISIBLE_SPACE_REG_EXP, "");
+      return oldNode.ownerDocument.createTextNode(data);
+    } 
   }
   
   
@@ -6271,14 +6313,14 @@ wysihtml5.quirks.ensureProperClearing = (function() {
  */
 (function(wysihtml5, rangy) {
   var defaultTagName = "span";
-  
+
   var REG_EXP_WHITE_SPACE = /\s+/g;
-  
+
   function hasClass(el, cssClass, regExp) {
     if (!el.className) {
       return false;
     }
-    
+
     var matchingClassNames = el.className.match(regExp) || [];
     return matchingClassNames[matchingClassNames.length - 1] === cssClass;
   }
@@ -6297,7 +6339,7 @@ wysihtml5.quirks.ensureProperClearing = (function() {
       el.className = el.className.replace(regExp, "");
     }
   }
-  
+
   function hasSameClasses(el1, el2) {
     return el1.className.replace(REG_EXP_WHITE_SPACE, " ") == el2.className.replace(REG_EXP_WHITE_SPACE, " ");
   }
@@ -6370,7 +6412,7 @@ wysihtml5.quirks.ensureProperClearing = (function() {
     }
     return (descendantNode == node) ? newNode : splitNodeAt(node, newNode.parentNode, rangy.dom.getNodeIndex(newNode));
   }
-  
+
   function Merge(firstNode) {
     this.isElementMerge = (firstNode.nodeType == wysihtml5.ELEMENT_NODE);
     this.firstTextNode = this.isElementMerge ? firstNode.lastChild : firstNode;
@@ -6412,13 +6454,16 @@ wysihtml5.quirks.ensureProperClearing = (function() {
     }
   };
 
-  function HTMLApplier(tagNames, cssClass, similarClassRegExp, normalize) {
+  /* Donna Start - Added attrs parameter. */
+  function HTMLApplier(tagNames, cssClass, similarClassRegExp, normalize, attrs) {
     this.tagNames = tagNames || [defaultTagName];
     this.cssClass = cssClass || "";
     this.similarClassRegExp = similarClassRegExp;
     this.normalize = normalize;
+    this.attrs = attrs || [];
     this.applyToAnyTagName = false;
   }
+  /* Donna End */
 
   HTMLApplier.prototype = {
     getAncestorWithClass: function(node) {
@@ -6486,7 +6531,7 @@ wysihtml5.quirks.ensureProperClearing = (function() {
         range.setEnd(rangeEndNode, rangeEndOffset);
       }
     },
-    
+
     getAdjacentMergeableTextNode: function(node, forward) {
         var isTextNode = (node.nodeType == wysihtml5.TEXT_NODE);
         var el = isTextNode ? node.parentNode : node;
@@ -6507,7 +6552,7 @@ wysihtml5.quirks.ensureProperClearing = (function() {
         }
         return null;
     },
-    
+
     areElementsMergeable: function(el1, el2) {
       return rangy.dom.arrayContains(this.tagNames, (el1.tagName || "").toLowerCase())
         && rangy.dom.arrayContains(this.tagNames, (el2.tagName || "").toLowerCase())
@@ -6517,9 +6562,19 @@ wysihtml5.quirks.ensureProperClearing = (function() {
 
     createContainer: function(doc) {
       var el = doc.createElement(this.tagNames[0]);
+
       if (this.cssClass) {
         el.className = this.cssClass;
       }
+
+      /* Donna Start - Add support for other attributes. */
+      if (this.attrs) {
+        for (var i = 0; i < this.attrs.length; i++) {
+          el.setAttribute(this.attrs[i].name, this.attrs[i].value);
+        }
+      }
+      /* Donna End */
+
       return el;
     },
 
@@ -6529,6 +6584,15 @@ wysihtml5.quirks.ensureProperClearing = (function() {
         if (this.cssClass) {
           addClass(parent, this.cssClass, this.similarClassRegExp);
         }
+
+        /* Donna Start - Add support for other attributes. */
+        if (this.attrs) {
+          for (var i = 0; i < this.attrs.length; i++) {
+            parent.removeAttribute(this.attrs[i].name);
+            parent.setAttribute(this.attrs[i].name, this.attrs[i].value);
+          }
+        }
+        /* Donna End */
       } else {
         var el = this.createContainer(rangy.dom.getDocument(textNode));
         textNode.parentNode.insertBefore(el, textNode);
@@ -6554,7 +6618,7 @@ wysihtml5.quirks.ensureProperClearing = (function() {
           ancestorWithClass = splitNodeAt(ancestorWithClass, range.startContainer, range.startOffset);
         }
       }
-      
+
       if (this.similarClassRegExp) {
         removeClass(ancestorWithClass, this.similarClassRegExp);
       }
@@ -6573,10 +6637,10 @@ wysihtml5.quirks.ensureProperClearing = (function() {
             return;
           } catch(e) {}
         }
-        
+
         range.splitBoundaries();
         textNodes = range.getNodes([wysihtml5.TEXT_NODE]);
-        
+
         if (textNodes.length) {
           var textNode;
 
@@ -6586,11 +6650,11 @@ wysihtml5.quirks.ensureProperClearing = (function() {
               this.applyToTextNode(textNode);
             }
           }
-          
+
           range.setStart(textNodes[0], 0);
           textNode = textNodes[textNodes.length - 1];
           range.setEnd(textNode, textNode.length);
-          
+
           if (this.normalize) {
             this.postApply(textNodes, range);
           }
@@ -6609,7 +6673,7 @@ wysihtml5.quirks.ensureProperClearing = (function() {
         range.selectNode(node);
         textNodes = [node];
       }
-      
+
       for (var i = 0, len = textNodes.length; i < len; ++i) {
         textNode = textNodes[i];
         ancestorWithClass = this.getAncestorWithClass(textNode);
@@ -6617,7 +6681,7 @@ wysihtml5.quirks.ensureProperClearing = (function() {
           this.undoToTextNode(textNode, range, ancestorWithClass);
         }
       }
-      
+
       if (len == 1) {
         this.selectNode(range, textNodes[0]);
       } else {
@@ -6630,7 +6694,7 @@ wysihtml5.quirks.ensureProperClearing = (function() {
         }
       }
     },
-    
+
     selectNode: function(range, node) {
       var isElement       = node.nodeType === wysihtml5.ELEMENT_NODE,
           canHaveHTML     = "canHaveHTML" in node ? node.canHaveHTML : true,
@@ -6649,7 +6713,7 @@ wysihtml5.quirks.ensureProperClearing = (function() {
         range.setEndAfter(node);
       }
     },
-    
+
     getTextSelectedByRange: function(textNode, range) {
       var textRange = range.cloneRange();
       textRange.selectNodeContents(textNode);
@@ -6669,7 +6733,7 @@ wysihtml5.quirks.ensureProperClearing = (function() {
         ancestor = this.getAncestorWithClass(range.startContainer);
         return ancestor ? [ancestor] : false;
       }
-      
+
       for (var i = 0, len = textNodes.length, selectedText; i < len; ++i) {
         selectedText = this.getTextSelectedByRange(textNodes[i], range);
         ancestor = this.getAncestorWithClass(textNodes[i]);
@@ -6692,7 +6756,7 @@ wysihtml5.quirks.ensureProperClearing = (function() {
   };
 
   wysihtml5.selection.HTMLApplier = HTMLApplier;
-  
+
 })(wysihtml5, rangy);/**
  * Rich Text Query/Formatting Commands
  * 
@@ -6775,7 +6839,70 @@ wysihtml5.Commands = Base.extend(
     }
   }
 });
-wysihtml5.commands.bold = {
+(function(wysihtml5) {
+  // TODO: Could also be wysiwyg-justify.
+  var REG_EXP = /wysiwyg-align-[a-z]+/g;
+
+  wysihtml5.commands.alignment = {
+    exec: function(composer, command, alignment) {
+      if (alignment === "justify") {
+        return wysihtml5.commands.formatInline.exec(composer, command, "div",
+          "wysiwyg-justify", REG_EXP);
+      }
+      else  {
+        return wysihtml5.commands.formatInline.exec(composer, command, "div",
+          "wysiwyg-align-" + alignment, REG_EXP);
+      }
+    },
+
+    state: function(composer, command, alignment) {
+      if (alignment === "justify") {
+        return wysihtml5.commands.formatInline.state(composer, command, "div",
+          "wysiwyg-justify", REG_EXP);
+      }
+      else  {
+        return wysihtml5.commands.formatInline.state(composer, command, "div",
+          "wysiwyg-align-" + alignment, REG_EXP);
+      }
+    }
+  };
+})(wysihtml5);(function(wysihtml5) {
+  var REG_EXP = /wysiwyg-background-color-[a-z0-9\-]+/g;
+
+  wysihtml5.commands.backgroundColor = {
+    exec: function(composer, command, color, attrs) {
+      var className = "wysiwyg-background-color-" + color.replace("#", "");
+      var style = document.createElement("style");
+      var body = editor.composer.doc.body;
+      var classes = body.classList;
+
+      // Add a CSS class for the selected font. Unfortunately, !important is
+      // needed to override the inline style.
+      style.type = "text/css";
+      style.innerHTML = "." + className + " { background-color: " + color +
+        " !important; }";
+      composer.iframe.contentDocument.getElementsByTagName("head")[0]
+        .appendChild(style);
+
+      // Remove any old background class before adding the new class.
+      for (var i = 0; i < classes.length; i++) {
+        if (classes[i].match(REG_EXP)) {
+          body.classList.remove(classes[i]);
+        }
+      }
+
+      for (i = 0; i < attrs.length; i++) {
+        body.setAttribute(attrs[i].name, attrs[i].value);
+      }
+
+      body.classList.add(className);
+    },
+
+    state: function(composer, command, color, attrs) {
+
+    }
+  };
+})(wysihtml5);wysihtml5.commands.bold = {
   exec: function(composer, command) {
     return wysihtml5.commands.formatInline.exec(composer, command, "b");
   },
@@ -6890,14 +7017,41 @@ wysihtml5.commands.bold = {
       return wysihtml5.commands.formatInline.state(composer, command, "A");
     }
   };
+})(wysihtml5);(function(wysihtml5) {
+  var REG_EXP = /wysiwyg-font-family-[a-z\-]+/g;
+
+  wysihtml5.commands.customFont = {
+    exec: function(composer, command, font, attrs) {
+      var className = "wysiwyg-font-family-" + font.replace(/ /g, "-")
+        .toLowerCase();
+      var style = document.createElement("style");
+
+      // Add CSS for the selected font plus a fallback.
+      style.type = "text/css";
+      style.innerHTML = "." + className +" { font-family: '" + font +
+        "', serif; }";
+      composer.iframe.contentDocument.getElementsByTagName("head")[0]
+        .appendChild(style);
+
+      return wysihtml5.commands.formatInline.exec(composer, command, "span",
+        className, REG_EXP, attrs);
+    },
+
+    state: function(composer, command, font, attrs) {
+      var className = "wysiwyg-font-family-" + font.replace(/ /g, "-")
+        .toLowerCase();
+
+      return wysihtml5.commands.formatInline.state(composer, command, "span",
+        className, REG_EXP, attrs);
+    }
+  };
 })(wysihtml5);/**
  * document.execCommand("fontSize") will create either inline styles (firefox, chrome) or use font tags
  * which we don't want
  * Instead we set a css class
  */
 (function(wysihtml5) {
-  var undef,
-      REG_EXP = /wysiwyg-font-size-[0-9a-z\-]+/g;
+  var REG_EXP = /wysiwyg-font-size-[0-9a-z\-]+/g;
   
   wysihtml5.commands.fontSize = {
     exec: function(composer, command, size) {
@@ -6906,10 +7060,6 @@ wysihtml5.commands.bold = {
 
     state: function(composer, command, size) {
       return wysihtml5.commands.formatInline.state(composer, command, "span", "wysiwyg-font-size-" + size, REG_EXP);
-    },
-
-    value: function() {
-      return undef;
     }
   };
 })(wysihtml5);
@@ -7158,12 +7308,12 @@ wysihtml5.commands.bold = {
  *      abcdefg|
  *   output:
  *      abcdefg<b>|</b>
- *   
+ *
  *   #2 unformatted text selected:
  *      abc|deg|h
  *   output:
  *      abc<b>|deg|</b>h
- *   
+ *
  *   #3 unformatted text selected across boundaries:
  *      ab|c <span>defg|h</span>
  *   output:
@@ -7193,31 +7343,34 @@ wysihtml5.commands.bold = {
         "i":      "em"
       },
       htmlApplier = {};
-  
+
   function _getTagNames(tagName) {
     var alias = ALIAS_MAPPING[tagName];
     return alias ? [tagName.toLowerCase(), alias.toLowerCase()] : [tagName.toLowerCase()];
   }
-  
-  function _getApplier(tagName, className, classRegExp) {
+
+   /* Donna Start - Added attrs parameter. */
+  function _getApplier(tagName, className, classRegExp, attrs) {
     var identifier = tagName + ":" + className;
     if (!htmlApplier[identifier]) {
-      htmlApplier[identifier] = new wysihtml5.selection.HTMLApplier(_getTagNames(tagName), className, classRegExp, true);
+      htmlApplier[identifier] = new wysihtml5.selection.HTMLApplier(_getTagNames(tagName), className, classRegExp, true, attrs);
     }
     return htmlApplier[identifier];
   }
-  
+  /* Donna End */
+
+  /* Donna Start - Added attrs parameter. */
   wysihtml5.commands.formatInline = {
-    exec: function(composer, command, tagName, className, classRegExp) {
+    exec: function(composer, command, tagName, className, classRegExp, attrs) {
       var range = composer.selection.getRange();
       if (!range) {
         return false;
       }
-      _getApplier(tagName, className, classRegExp).toggleRange(range);
+      _getApplier(tagName, className, classRegExp, attrs).toggleRange(range);
       composer.selection.setSelection(range);
     },
 
-    state: function(composer, command, tagName, className, classRegExp) {
+    state: function(composer, command, tagName, className, classRegExp, attrs) {
       var doc           = composer.doc,
           aliasTagName  = ALIAS_MAPPING[tagName] || tagName,
           range;
@@ -7234,11 +7387,66 @@ wysihtml5.commands.bold = {
       }
 
       range = composer.selection.getRange();
+
       if (!range) {
         return false;
       }
 
-      return _getApplier(tagName, className, classRegExp).isAppliedToRange(range);
+      return _getApplier(tagName, className, classRegExp, attrs).isAppliedToRange(range);
+    }
+    /* Donna End */
+  };
+})(wysihtml5);(function(wysihtml5) {
+  var REG_EXP = /wysiwyg-font-family-[a-z\-]+/g;
+
+  wysihtml5.commands.googleFont = {
+    exec: function(composer, command, font, attrs) {
+      var className = "wysiwyg-font-family-" + font.replace(/ /g, "-")
+        .toLowerCase();
+      var style = document.createElement("style");
+
+      // Add CSS for the selected font plus a fallback.
+      style.type = "text/css";
+      style.innerHTML = "." + className +" { font-family: '" + font +
+        "', serif; }";
+      composer.iframe.contentDocument.getElementsByTagName("head")[0]
+        .appendChild(style);
+
+      return wysihtml5.commands.formatInline.exec(composer, command, "span",
+        className, REG_EXP, attrs);
+    },
+
+    state: function(composer, command, font, attrs) {
+      var className = "wysiwyg-font-family-" + font.replace(/ /g, "-")
+        .toLowerCase();
+
+      return wysihtml5.commands.formatInline.state(composer, command, "span",
+        className, REG_EXP, attrs);
+    }
+  };
+})(wysihtml5);(function(wysihtml5) {
+  var REG_EXP = /wysiwyg-highlight-color-[a-z0-9\-]+/g;
+
+  wysihtml5.commands.highlightColor = {
+    exec: function(composer, command, color, attrs) {
+      var className = "wysiwyg-highlight-color-" + color.replace("#", "");
+      var style = document.createElement("style");
+
+      // Add a CSS class for the selected font.
+      style.type = "text/css";
+      style.innerHTML = "." + className +" { background-color: " + color + "; }";
+      composer.iframe.contentDocument.getElementsByTagName("head")[0]
+        .appendChild(style);
+
+      return wysihtml5.commands.formatInline.exec(composer, command, "span",
+        className, REG_EXP, attrs);
+    },
+
+    state: function(composer, command, color, attrs) {
+      var className = "wysiwyg-highlight-color-" + color.replace("#", "");
+
+      return wysihtml5.commands.formatInline.state(composer, command, "span",
+        className, REG_EXP, attrs);
     }
   };
 })(wysihtml5);wysihtml5.commands.insertHTML = {
@@ -7274,7 +7482,6 @@ wysihtml5.commands.bold = {
       var doc     = composer.doc,
           image   = this.state(composer),
           textNode,
-          i,
           parent;
 
       if (image) {
@@ -7297,11 +7504,8 @@ wysihtml5.commands.bold = {
 
       image = doc.createElement(NODE_NAME);
       
-      for (i in value) {
-        if (i === "className") {
-          i = "class";
-        }
-        image.setAttribute(i, value[i]);
+      for (var i in value) {
+        image.setAttribute(i === "className" ? "class" : i, value[i]);
       }
 
       composer.selection.insertNode(image);
@@ -7546,7 +7750,60 @@ wysihtml5.commands.redo = {
   state: function(composer) {
     return false;
   }
-};wysihtml5.commands.underline = {
+};(function(wysihtml5) {
+  var REG_EXP = /wysiwyg-font-family-[a-z\-]+/g;
+
+  wysihtml5.commands.standardFont = {
+    exec: function(composer, command, font, fontFamily, attrs) {
+      var className = "wysiwyg-font-family-" + font.replace(/ /g, "-")
+        .toLowerCase();
+      var style = document.createElement("style");
+
+      // Add a CSS class for the selected font.
+      style.type = "text/css";
+      style.innerHTML = "." + className +" { font-family: " + fontFamily +
+        "; }";
+      composer.iframe.contentDocument.getElementsByTagName("head")[0]
+        .appendChild(style);
+
+      return wysihtml5.commands.formatInline.exec(composer, command, "span",
+        className, REG_EXP, attrs);
+    },
+
+    state: function(composer, command, font, fontFamily, attrs) {
+      var className = "wysiwyg-font-family-" + font.replace(/ /g, "-")
+        .toLowerCase();
+
+      return wysihtml5.commands.formatInline.state(composer, command, "span",
+        className, REG_EXP, attrs);
+    }
+  };
+})(wysihtml5);(function(wysihtml5) {
+  var REG_EXP = /wysiwyg-text-color-[a-z0-9\-]+/g;
+
+  wysihtml5.commands.textColor = {
+    exec: function(composer, command, color, attrs) {
+      var className = "wysiwyg-text-color-" + color.replace("#", "");
+      var style = document.createElement("style");
+
+      // Add a CSS class for the selected font.
+      style.type = "text/css";
+      style.innerHTML = "." + className +" { color: " + color + "; }";
+      composer.iframe.contentDocument.getElementsByTagName("head")[0]
+        .appendChild(style);
+
+      return wysihtml5.commands.formatInline.exec(composer, command, "span",
+        className, REG_EXP, attrs);
+    },
+
+    state: function(composer, command, color, attrs) {
+      var className = "wysiwyg-text-color-" + color.replace("#", "");
+
+      return wysihtml5.commands.formatInline.state(composer, command, "span",
+        className, REG_EXP, attrs);
+    }
+  };
+})(wysihtml5);wysihtml5.commands.underline = {
   exec: function(composer, command) {
     return wysihtml5.commands.formatInline.exec(composer, command, "u");
   },
@@ -7896,11 +8153,6 @@ wysihtml5.views.View = Base.extend(
         value = this.parent.parse(value);
       }
 
-      // Replace all "zero width no breaking space" chars
-      // which are used as hacks to enable some functionalities
-      // Also remove all CARET hacks that somehow got left
-      value = wysihtml5.lang.string(value).replace(wysihtml5.INVISIBLE_SPACE).by("");
-
       return value;
     },
 
@@ -8228,6 +8480,16 @@ wysihtml5.views.View = Base.extend(
           }
         });
       }
+      
+      // Under certain circumstances Chrome + Safari create nested <p> or <hX> tags after paste
+      // Inserting an invisible white space in front of it fixes the issue
+      if (browser.createsNestedInvalidMarkupAfterPaste()) {
+        dom.observe(this.element, "paste", function(event) {
+          var invisibleSpace = that.doc.createTextNode(wysihtml5.INVISIBLE_SPACE);
+          that.selection.insertNode(invisibleSpace);
+        });
+      }
+
       
       dom.observe(this.doc, "keydown", function(event) {
         var keyCode = event.keyCode;
@@ -8896,6 +9158,7 @@ wysihtml5.views.Textarea = wysihtml5.views.View.extend(
           callbackWrapper(event);
         }
         if (keyCode === wysihtml5.ESCAPE_KEY) {
+          that.fire("cancel");
           that.hide();
         }
       });
@@ -9263,10 +9526,14 @@ wysihtml5.views.Textarea = wysihtml5.views.View.extend(
       for (; i<length; i++) {
         // 'javascript:;' and unselectable=on Needed for IE, but done in all browsers to make sure that all get the same css applied
         // (you know, a:link { ... } doesn't match anchors with missing href attribute)
-        dom.setAttributes({
-          href:         "javascript:;",
-          unselectable: "on"
-        }).on(links[i]);
+        if (links[i].nodeName === "A") {
+          dom.setAttributes({
+            href:         "javascript:;",
+            unselectable: "on"
+          }).on(links[i]);
+        } else {
+          dom.setAttributes({ unselectable: "on" }).on(links[i]);
+        }
       }
 
       // Needed for opera and chrome
@@ -9459,7 +9726,9 @@ wysihtml5.views.Textarea = wysihtml5.views.View.extend(
     // Placeholder text to use, defaults to the placeholder attribute on the textarea element
     placeholderText:      undef,
     // Whether the rich text editor should be rendered on touch devices (wysihtml5 >= 0.3.0 comes with basic support for iOS 5)
-    supportTouchDevices:  true
+    supportTouchDevices:  true,
+    // Whether senseless <span> elements (empty or without attributes) should be removed/replaced with their content
+    cleanUp:              true
   };
   
   wysihtml5.Editor = wysihtml5.lang.Dispatcher.extend(
@@ -9554,7 +9823,7 @@ wysihtml5.views.Textarea = wysihtml5.views.View.extend(
     },
     
     parse: function(htmlOrElement) {
-      var returnValue = this.config.parser(htmlOrElement, this.config.parserRules, this.composer.sandbox.getDocument(), true);
+      var returnValue = this.config.parser(htmlOrElement, this.config.parserRules, this.composer.sandbox.getDocument(), this.config.cleanUp);
       if (typeof(htmlOrElement) === "object") {
         wysihtml5.quirks.redraw(htmlOrElement);
       }
