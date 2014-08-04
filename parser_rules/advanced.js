@@ -99,7 +99,8 @@ var wysihtml5ParserRules = {
      *                            - src:            allows something like "/foobar.jpg", "http://google.com", ...
      *                            - href:           allows something like "mailto:bert@foo.com", "http://google.com", "/foobar.jpg"
      *                            - alt:            strips unwanted characters. if the attribute is not set, then it gets set (to ensure valid and compatible HTML)
-     *                            - numbers:  ensures that the attribute only contains numeric characters
+     *                            - numbers:        ensures that the attribute only contains numeric characters
+     *                            - preserve:       keep the current value in the property.
      */
     "tags": {
         "tr": {
@@ -180,11 +181,11 @@ var wysihtml5ParserRules = {
         },
         "a": {
             "check_attributes": {
+                "target": "preserve", // If a user specifies a target, we should keep it that way.
                 "href": "url" // if you compiled master manually then change this from 'url' to 'href'
             },
             "set_attributes": {
                 "rel": "nofollow",
-                "target": "_blank"
             }
         },
         "img": {
