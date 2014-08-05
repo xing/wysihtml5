@@ -53,7 +53,9 @@ asyncTest("Basic test", function() {
       ok(false, "Specific 'focus:composer' event fired, and that's wrong, there shouldn't be a composer element/view");
     });
     
-    QUnit.triggerEvent(that.textareaElement, wysihtml5.browser.supportsEvent("focusin") ? "focusin" : "focus");
+    var eventOptions = {};
+    eventOptions.type = wysihtml5.browser.supportsEvent("focusin") ? "focusin" : "focus";
+    happen.once(that.textareaElement, eventOptions);
     
     start();
   });

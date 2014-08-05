@@ -1,6 +1,6 @@
 module("wysihtml5.dom.resolveList", {
   equal: function(actual, expected, message) {
-    return wysihtml5.assert.htmlEqual(actual, expected, message);
+    return QUnit.assert.htmlEqual(actual, expected, message);
   },
   
   resolveList: function(html, useLineBreaks) {
