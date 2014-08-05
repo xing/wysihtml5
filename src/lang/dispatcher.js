@@ -27,7 +27,7 @@ wysihtml5.lang.Dispatcher = Base.extend(
     }
     return this;
   },
-  
+
   fire: function(eventName, payload) {
     this.events = this.events || {};
     var handlers = this.events[eventName] || [],
@@ -37,12 +37,12 @@ wysihtml5.lang.Dispatcher = Base.extend(
     }
     return this;
   },
-  
+
   // deprecated, use .on()
   observe: function() {
     return this.on.apply(this, arguments);
   },
-  
+
   // deprecated, use .off()
   stopObserving: function() {
     return this.off.apply(this, arguments);

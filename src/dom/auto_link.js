@@ -27,9 +27,9 @@
       TRAILING_CHAR_REG_EXP = /([^\w\/\-](,?))$/i,
       MAX_DISPLAY_LENGTH    = 100,
       BRACKETS              = { ")": "(", "]": "[", "}": "{" };
-  
-  function autoLink(element) {
-    if (_hasParentThatShouldBeIgnored(element)) {
+
+  function autoLink(element, ignoreInClasses) {
+    if (_hasParentThatShouldBeIgnored(element, ignoreInClasses)) {
       return element;
     }
 
@@ -37,9 +37,9 @@
       element = element.ownerDocument.body;
     }
 
-    return _parseNode(element);
+    return _parseNode(element, ignoreInClasses);
   }
-  
+
   /**
    * This is basically a rebuild of
    * the rails auto_link_urls text helper
@@ -63,11 +63,11 @@
       if (realUrl.substr(0, 4) === "www.") {
         realUrl = "http://" + realUrl;
       }
-      
+
       return '<a href="' + realUrl + '">' + displayUrl + '</a>' + punctuation;
     });
   }
-  
+
   /**
    * Creates or (if already cached) returns a temp element
    * for the given document object
@@ -79,7 +79,7 @@
     }
     return tempElement;
   }
-  
+
   /**
    * Replaces the original text nodes with the newly auto-linked dom tree
    */
@@ -87,24 +87,27 @@
     var parentNode  = textNode.parentNode,
         nodeValue   = wysihtml5.lang.string(textNode.data).escapeHTML(),
         tempElement = _getTempElement(parentNode.ownerDocument);
-    
+
     // We need to insert an empty/temporary <span /> to fix IE quirks
     // Elsewise IE would strip white space in the beginning
     tempElement.innerHTML = "<span></span>" + _convertUrlsToLinks(nodeValue);
     tempElement.removeChild(tempElement.firstChild);
-    
+
     while (tempElement.firstChild) {
       // inserts tempElement.firstChild before textNode
       parentNode.insertBefore(tempElement.firstChild, textNode);
     }
     parentNode.removeChild(textNode);
   }
-  
-  function _hasParentThatShouldBeIgnored(node) {
+
+  function _hasParentThatShouldBeIgnored(node, ignoreInClasses) {
     var nodeName;
     while (node.parentNode) {
       node = node.parentNode;
       nodeName = node.nodeName;
+      if (node.className && wysihtml5.lang.array(node.className.split(' ')).contains(ignoreInClasses)) {
+        return true;
+      }
       if (IGNORE_URLS_IN.contains(nodeName)) {
         return true;
       } else if (nodeName === "body") {
@@ -113,30 +116,34 @@
     }
     return false;
   }
-  
-  function _parseNode(element) {
+
+  function _parseNode(element, ignoreInClasses) {
     if (IGNORE_URLS_IN.contains(element.nodeName)) {
       return;
     }
-    
+
+    if (element.className && wysihtml5.lang.array(element.className.split(' ')).contains(ignoreInClasses)) {
+      return;
+    }
+
     if (element.nodeType === wysihtml5.TEXT_NODE && element.data.match(URL_REG_EXP)) {
       _wrapMatchesInNode(element);
       return;
     }
-    
+
     var childNodes        = wysihtml5.lang.array(element.childNodes).get(),
         childNodesLength  = childNodes.length,
         i                 = 0;
-    
+
     for (; i<childNodesLength; i++) {
-      _parseNode(childNodes[i]);
+      _parseNode(childNodes[i], ignoreInClasses);
     }
-    
+
     return element;
   }
-  
+
   wysihtml5.dom.autoLink = autoLink;
-  
+
   // Reveal url reg exp to the outside
   wysihtml5.dom.autoLink.URL_REG_EXP = URL_REG_EXP;
 })(wysihtml5);

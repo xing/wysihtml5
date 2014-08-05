@@ -24,34 +24,34 @@
   function _isBlockElement(node) {
     return dom.getStyle("display").from(node) === "block";
   }
-  
+
   function _isLineBreak(node) {
     return node.nodeName === "BR";
   }
-  
+
   function _appendLineBreak(element) {
     var lineBreak = element.ownerDocument.createElement("br");
     element.appendChild(lineBreak);
   }
-  
+
   function resolveList(list, useLineBreaks) {
     if (!list.nodeName.match(/^(MENU|UL|OL)$/)) {
       return;
     }
-    
+
     var doc             = list.ownerDocument,
         fragment        = doc.createDocumentFragment(),
-        previousSibling = list.previousElementSibling || list.previousSibling,
+        previousSibling = wysihtml5.dom.domNode(list).prev({ignoreBlankTexts: true}),
         firstChild,
         lastChild,
         isLastChild,
         shouldAppendLineBreak,
         paragraph,
         listItem;
-    
+
     if (useLineBreaks) {
       // Insert line break if list is after a non-block element
-      if (previousSibling && !_isBlockElement(previousSibling)) {
+      if (previousSibling && !_isBlockElement(previousSibling) && !_isLineBreak(previousSibling)) {
         _appendLineBreak(fragment);
       }
 
@@ -66,7 +66,7 @@
             _appendLineBreak(fragment);
           }
         }
-        
+
         listItem.parentNode.removeChild(listItem);
       }
     } else {
@@ -88,6 +88,6 @@
 
     list.parentNode.replaceChild(fragment, list);
   }
-  
+
   dom.resolveList = resolveList;
 })(wysihtml5.dom);

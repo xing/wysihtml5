@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+
+<meta http-equiv="X-UA-Compatible" content="IE=Edge">
+<meta charset="utf-8">
+
+<title>wysihtml5 - Advanced Demo</title>
+<link rel="stylesheet" href="css/stylesheet.css" type="text/css" media="screen" title="no title" charset="utf-8">
+
+
+<style>
+  body {
+    font-family: Verdana;
+    font-size: 11px;
+  }
+  
+  h2 {
+    margin-bottom: 0;
+  }
+  
+  small {
+    display: block;
+    margin-top: 40px;
+    font-size: 9px;
+  }
+  
+  small,
+  small a {
+    color: #666;
+  }
+  
+  a {
+    color: #000;
+    text-decoration: underline;
+    cursor: pointer;
+  }
+  
+  #toolbar [data-wysihtml5-action] {
+    float: right;
+  }
+  
+  #toolbar,
+  textarea {
+    width: 920px;
+    padding: 5px;
+    -webkit-box-sizing: border-box;
+    -ms-box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    box-sizing: border-box;
+  }
+  
+  textarea {
+    height: 280px;
+    border: 2px solid green;
+    font-family: Verdana;
+    font-size: 11px;
+  }
+  
+  textarea:focus {
+    color: black;
+    border: 2px solid black;
+  }
+  
+  .wysihtml5-command-active {
+    font-weight: bold;
+  }
+  
+  [data-wysihtml5-dialog] {
+    margin: 5px 0 0;
+    padding: 5px;
+    border: 1px solid #666;
+  }
+  
+  a[data-wysihtml5-command-value="red"] {
+    color: red;
+  }
+  
+  a[data-wysihtml5-command-value="green"] {
+    color: green;
+  }
+  
+  a[data-wysihtml5-command-value="blue"] {
+    color: blue;
+  }
+  
+  code {
+    background: #ddd;
+    padding: 10px;
+    white-space: pre;
+    display: block;
+    margin: 1em 0;
+  }
+  
+  .toolbar {
+    display: block;
+    border-radius: 3px;
+    border: 1px solid #fff;
+    margin-bottom: 10px;
+  }
+  .toolbar a {
+    display: inline-block;
+    height: 1.7em;
+    border-radius: 3px;
+    font-size: 11px;
+    line-height: 1.7em;
+    text-decoration: none;
+    background: #e1e1e1;
+    border: 1px solid #ddd;
+    padding: 0 0.5em;
+    margin: 1px 0;
+  }
+  .toolbar a.active  {
+    background: #222;
+    color: white;
+  }
+  .toolbar .block { 
+    padding: 2px 3px;
+    display: inline-block;
+    background: #eee;
+    border-radius: 3px;
+    margin: 2px 2px 2px 0;
+  }
+  
+  .wysihtml5-editor table td, .wysihtml5-editor table th {
+      outline: 1px dotted #ddd;
+  }
+  .wysihtml5-editor table .wysiwyg-tmp-selected-cell {
+    outline: 1px solid green;
+  }
+  
+  .toolbar .color-btn, .toolbar .bg-color-btn {
+    height: 1.7em;
+    width: 1.7em;
+    text-align: center;
+    border: 2px solid #ddd;
+    padding:0;
+    margin:0;
+    color: white;
+  }
+  
+  .toolbar .color-btn.active, .toolbar .bg-color-btn.active  {
+    border: 2px solid #333;
+  }
+  
+</style>
+
+<h1>wysihtml5 - Advanced Editor Example</h1>
+
+<div class="ewrapper">
+  <div class="toolbar">
+    
+    <div class="block">
+      <a id="boldbtn" class="editor-btn">bold</a>
+      <a id="italicbtn" class="editor-btn">italic</a>
+      
+      <a id="colorbtn" class="editor-btn">color</a>
+      <span style="display:none" id="colorBtns">
+        <a class="color-btn" style="background-color: rgb(255,0,0)" data-value="rgb(255,0,0)">R</a>
+        <a class="color-btn" style="background-color: rgb(0,255,0)" data-value="rgb(0,255,0)">G</a>
+        <a class="color-btn" style="background-color: rgb(0,0,255)" data-value="rgb(0,0,255)">B</a>
+      </span>
+      
+      <a id="bgcolorbtn" class="editor-btn">BG color</a>
+      <span style="display:none" id="bgColorBtns">
+        <a class="bg-color-btn" style="background-color: rgb(255,128,128)" data-value="rgb(255,128,128)">R</a>
+        <a class="bg-color-btn" style="background-color: rgb(128,255,128)" data-value="rgb(128,255,128)">G</a>
+        <a class="bg-color-btn" style="background-color: rgb(128,128,255)" data-value="rgb(128,128,255)">B</a>
+      </span>
+      
+      &nbsp;
+      <a id="fontSizeSmaller" class="editor-btn">-</a>
+      <input type="text" style="width: 30px; border: none; text-align: right;" id="fontSize"/>
+      <a id="fontSizeRemove" class="editor-btn">x</a>
+      <a id="fontSizeBigger" class="editor-btn">+</a>
+      &nbsp;
+      
+      <span style="display:none" id="tableBtns">
+        &nbsp;
+        <a id="addRowAbove" class="editor-btn">+⋀</a>
+        <a id="addRowBelow" class="editor-btn">+⋁</a>
+        <a id="addRowBefore" class="editor-btn">+&lt;</a>
+        <a id="addRowAfter" class="editor-btn">+&gt;</a>
+        
+        &nbsp;
+        <a id="removeRow" class="editor-btn">-=</a>
+        <a id="removeCol" class="editor-btn">-||</a>
+        
+        &nbsp;
+        <a id="merge" class="editor-btn">[&nbsp;]</a>
+      </span>
+
+      <a id="leftbtn" class="editor-btn">Left</a>
+      <a id="centerbtn" class="editor-btn">Center</a>
+      <a id="rightbtn" class="editor-btn">Right</a>
+      
+    </div>
+  </div><!-- toolbar -->
+  
+  <div class="editable" data-placeholder="Enter text ...">
+    Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nullam egestas nisl augue, a fermentum quam laoreet at. Cum sociis natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Pellentesque ullamcorper ultrices nibh mollis mattis. Etiam ac fermentum nisi. Sed sagittis porta augue, vel congue mi. Vivamus egestas vestibulum sem, a suscipit libero faucibus ut. Quisque mauris metus, imperdiet at velit a, suscipit fermentum ante. Nullam pretium mauris at risus eleifend ultrices. Vestibulum ullamcorper mattis est non lobortis. Donec consequat magna quis felis mollis tristique. Fusce sed congue felis.
+    <div contentEditable="false" class="wysihtml5-uneditable-container" style="padding: 10px; border: 1px dotted gray;">
+      Aenean ut nulla orci. Praesent id mollis massa. Fusce interdum eleifend bibendum. Nulla luctus nisl sit amet sapien sodales ornare. Duis blandit, purus eu egestas pretium, nisi augue aliquet quam, non suscipit diam velit eu enim. Suspendisse vulputate nibh et porta eleifend. Pellentesque rhoncus hendrerit quam. Ut sit amet ligula ac tortor porta ullamcorper.
+    </div>
+    Aenean ut nulla orci. Praesent id mollis massa. Fusce interdum eleifend bibendum. Nulla luctus nisl sit amet sapien sodales ornare. Duis blandit, purus eu egestas pretium, nisi augue aliquet quam, non suscipit diam velit eu enim. Suspendisse vulputate nibh et porta eleifend. Pellentesque rhoncus hendrerit quam. Ut sit amet ligula ac tortor porta ullamcorper.
+
+    Nulla facilisi. Ut quis pellentesque nisi, eget convallis nisi. Fusce dapibus tortor sem, et blandit nunc porttitor eget. Etiam eu nulla id nibh aliquet semper ut ut lorem. Nullam dapibus massa interdum interdum vehicula. Sed ante urna, pulvinar ut lacinia hendrerit, tristique ut enim. Fusce euismod adipiscing justo, nec malesuada massa sodales a. Integer pulvinar sed ligula et consectetur. Curabitur pulvinar cursus venenatis. Morbi in justo eget ipsum rhoncus accumsan. Sed felis orci, sodales eget est sit amet, sollicitudin lacinia justo. Aliquam et eros faucibus, tincidunt leo at, feugiat eros. Duis malesuada laoreet lorem eu molestie. Nulla vestibulum tincidunt diam ut placerat.
+
+    Aenean pretium diam nunc, at imperdiet elit vehicula a. Mauris nec felis non sem condimentum adipiscing ut et lacus. Donec facilisis facilisis lacinia. Nam posuere at nulla ut malesuada. Fusce ultricies lectus eu iaculis molestie. Ut consequat id magna et placerat. Nulla sed ante lectus. Donec congue, velit in ultricies tempus, felis lectus tempus sem, non bibendum lorem mi vel lorem. Mauris a placerat dui, nec auctor erat.
+
+    Suspendisse id mauris vel urna venenatis pharetra. Pellentesque luctus et nulla in vulputate. Donec id ligula id enim congue convallis id eu nibh. Phasellus a leo non dui porta sodales ac vel justo. Etiam sed dignissim ligula. Morbi consequat adipiscing risus vitae accumsan. Curabitur dignissim nec quam non blandit. Etiam venenatis, est a facilisis convallis, mauris nibh ultricies sapien, eget egestas neque eros sed libero. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia Curae; Maecenas et velit sit amet quam pulvinar accumsan. Donec id sollicitudin dolor.
+    <table>
+      <tr>
+        <th>1&nbsp;</th><th>2&nbsp;</th><th>3&nbsp;</th>
+      </tr>
+      <tr>
+        <td>4&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+      </tr>
+      <tr>
+        <td>7&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+      </tr>
+    </table>
+  
+  </div>
+</div>
+
+<!-- oldschool clearfix -->
+<div style="height: 1px; width: 100%; overflow: hidden; clear: both"></div>
+
+
+<br>
+
+<h2>Events:</h2>
+<div id="log"></div>
+
+<small>powered by <a href="https://github.com/xing/wysihtml5" target="_blank">wysihtml5</a>.</small>
+
+<script src="jquery.1.10.2.js" type="text/javascript" charset="utf-8"></script>
+
+
+<script src="../parser_rules/advanced_unwrap.js"></script>
+<script src="../dist/wysihtml5x.min.js"></script>
+<script>
+     
+    
+    
+    var editor = new wysihtml5.Editor($('.editable').get(0), {
+      parserRules:    wysihtml5ParserRules
+      //showToolbarAfterInit: false
+    }),
+    composer = editor.composer;
+    
+    function updateStates() {
+      var value;
+      
+      if (composer.commands.state('bold')) {
+        $('#boldbtn').addClass('active');
+      } else {
+        $('#boldbtn').removeClass('active');
+      }
+      
+      if (composer.commands.state('italic')) {
+        $('#italicbtn').addClass('active');
+      } else {
+        $('#italicbtn').removeClass('active');
+      }
+      
+      if (composer.commands.state('mergeTableCells')) {
+        $('#merge').addClass('active');
+      } else {
+        $('#merge').removeClass('active');
+      }
+
+      if (composer.commands.state('alignLeftStyle')) {
+        $('#leftbtn').addClass('active');
+      } else {
+        $('#leftbtn').removeClass('active');
+      }
+
+      if (composer.commands.state('alignRightStyle')) {
+        $('#rightbtn').addClass('active');
+      } else {
+        $('#rightbtn').removeClass('active');
+      }
+
+      if (composer.commands.state('alignCenterStyle')) {
+        $('#centerbtn').addClass('active');
+      } else {
+        $('#centerbtn').removeClass('active');
+      }
+      
+      if (composer.commands.state('foreColorStyle')) {
+        $('#colorbtn').addClass('active');
+        value = composer.commands.stateValue('foreColorStyle');
+        $('.color-btn.active').removeClass('active');
+        if (value) {
+          $('.color-btn[data-value="'+ value +'"]').addClass('active');
+        }
+        
+        $('#colorBtns').show();
+        
+      } else {
+        $('#colorbtn').removeClass('active');
+        $('#colorBtns').hide();
+      }
+      
+      if (composer.commands.state('bgColorStyle')) {
+        $('#bgcolorbtn').addClass('active');
+        value = composer.commands.stateValue('bgColorStyle');
+        $('.bg-color-btn.active').removeClass('active');
+        if (value) {
+          $('.bg-color-btn[data-value="'+ value +'"]').addClass('active');
+        }
+        
+        $('#bgColorBtns').show();
+        
+      } else {
+        $('#bgcolorbtn').removeClass('active');
+        $('#bgColorBtns').hide();
+      }
+      
+      // font size state 
+      if (composer.commands.state('fontSizeStyle')) {
+        $('#fontSize').val(composer.commands.stateValue('fontSizeStyle'));
+        $('#fontSizeRemove').addClass('active');
+      } else {
+        $('#fontSize').val('');
+        $('#fontSizeRemove').removeClass('active');
+      }
+      
+    }
+    
+// Listen to events and update menu
+    editor.on("interaction", function() {
+      updateStates();
+    });
+    
+    editor.on("tableselect", function() {
+      $('#tableBtns').show();
+    });
+    
+    editor.on("tableunselect", function() {
+      $('#tableBtns').hide();
+    });
+    
+// Prevent buttons from deselecting selected text before action is performed
+    $(".editor-btn").mousedown(function(event){
+      var b = composer.selection.getBookmark();
+      event.preventDefault();
+      
+      // ie8 bug fix. mousedown does not prevent loosing focus
+      setTimeout(function() {
+        composer.selection.setBookmark(b);
+      }, 0);
+      
+    });
+    
+// commands binding
+    $('#boldbtn').click(function(event) {
+      event.preventDefault();
+      composer.commands.exec('bold');
+      updateStates();
+    });
+    
+    $('#italicbtn').click(function(event) {
+      event.preventDefault();
+      composer.commands.exec('italic');
+      updateStates();
+    });
+
+    $('#leftbtn').click(function(event) {
+      event.preventDefault();
+      composer.commands.exec('alignLeftStyle');
+      updateStates();
+    });
+
+    $('#rightbtn').click(function(event) {
+      event.preventDefault();
+      composer.commands.exec('alignRightStyle');
+      updateStates();
+    });
+
+    $('#centerbtn').click(function(event) {
+      event.preventDefault();
+      composer.commands.exec('alignCenterStyle');
+      updateStates();
+    });
+    
+    
+    
+    //table
+    $('#addRowBelow').click(function(event) {
+      event.preventDefault();
+      composer.commands.exec("addTableCells", "below");
+    });
+    
+    $('#addRowAbove').click(function(event) {
+      event.preventDefault();
+      composer.commands.exec("addTableCells", "above");
+    });
+    
+    $('#addRowBefore').click(function(event) {
+      event.preventDefault();
+      composer.commands.exec("addTableCells", "before");
+    });
+    
+    $('#addRowAfter').click(function(event) {
+      event.preventDefault();
+      composer.commands.exec("addTableCells", "after");
+    });
+    
+    $('#removeRow').click(function(event) {
+      event.preventDefault();
+      composer.commands.exec("deleteTableCells", "row");
+    });
+    
+    $('#removeCol').click(function(event) {
+      event.preventDefault();
+      composer.commands.exec("deleteTableCells", "column");
+    });
+    
+    $('#merge').click(function(event) {
+      event.preventDefault();
+      composer.commands.exec("mergeTableCells");
+    });
+    
+    
+    
+    // color by style
+    $('#colorbtn').click(function(event) {
+      event.preventDefault();
+      $('#colorBtns').show();
+    });
+    
+    $('.color-btn').mousedown(function(event) {
+      event.preventDefault();
+      event.stopPropagation();
+      var val = $(this).data("value");
+      composer.commands.exec("foreColorStyle", val);
+      updateStates();
+    });
+    
+    $('#bgcolorbtn').click(function(event) {
+      event.preventDefault();
+      $('#bgColorBtns').show();
+    });
+    
+    $('.bg-color-btn').mousedown(function(event) {
+      event.preventDefault();
+      event.stopPropagation();
+      var val = $(this).data("value");
+      composer.commands.exec("bgColorStyle", val);
+      updateStates();
+    });
+    
+// font size actions  
+    var selBookmark = null;
+    $('#fontSize').mousedown(function() {
+      if (selBookmark == null) {
+        selBookmark = composer.selection.getBookmark();
+      }
+    });
+
+    $('#fontSize').change(function(){
+      if (selBookmark) {
+        setTimeout(function() {
+          composer.selection.setBookmark(selBookmark);
+          composer.commands.exec("fontSizeStyle", $('#fontSize').val());
+          selBookmark = null;
+        },0);
+      }
+    });
+
+    $('#fontSize').keydown(function(event) {
+      if (event.which == 13) {
+        event.preventDefault();
+        $('#fontSize').trigger('blur');
+      }
+    });
+
+    $('#fontSizeSmaller').click(function(event) {
+      event.preventDefault();
+      selBookmark = composer.selection.getBookmark();
+      var val = $('#fontSize').val(),
+          nr; 
+      if (val && !(/^\s*$/).test(val)) {
+        nr = parseInt(val, 10);
+        if (nr > 1) {
+          $('#fontSize').val(val.replace(/\d+/, nr -1)).trigger('change');
+          selBookmark = null;
+        }
+      } 
+    });
+
+    $('#fontSizeBigger').click(function(event) {
+      event.preventDefault();
+      selBookmark = composer.selection.getBookmark();
+      var val = $('#fontSize').val(),
+          nr; 
+      if (val && !(/^\s*$/).test(val)) {
+        nr = parseInt(val, 10);
+      $('#fontSize').val(val.replace(/\d+/, nr +1)).trigger('change');
+      selBookmark = null;
+      } 
+    });
+
+    // executing with same value removes size
+    $('#fontSizeRemove').click(function(event) {
+      event.preventDefault();
+      var val = composer.commands.stateValue('fontSizeStyle');
+      if (val) {
+        composer.commands.exec("fontSizeStyle", val);
+        selBookmark = null;
+      }
+    });
+    
+</script>

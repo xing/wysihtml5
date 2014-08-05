@@ -31,9 +31,9 @@ test("Basic test", function() {
     ok(true, "'click' correctly fired");
   });
   
-  QUnit.triggerEvent(element, "mouseover");
-  QUnit.triggerEvent(element, "mouseout");
-  QUnit.triggerEvent(element, "click");
+  happen.once(element, {type: "mouseover"});
+  happen.once(element, {type: "mouseout"});
+  happen.once(element, {type: "click"});
 });
 
 
@@ -51,7 +51,7 @@ test("Test stopPropagation and scope of event handler", function(event) {
     ok(true, "stopPropagation correctly fired");
   });
   
-  QUnit.triggerEvent(this.element, "click");
+  happen.once(this.element, {type: "click"});
 });
 
 test("Test detaching events", function() {
@@ -61,7 +61,7 @@ test("Test detaching events", function() {
   });
   
   eventListener.stop();
-  QUnit.triggerEvent(this.element, "click");
+  happen.once(this.element, {type: "click"});
 });
 
 asyncTest("Advanced test observing within a sandboxed iframe", function() {
@@ -73,8 +73,8 @@ asyncTest("Advanced test observing within a sandboxed iframe", function() {
     wysihtml5.dom.observe(element, ["click", "mousedown"], function(event) {
       ok(true, "'" + event.type + "' correctly fired");
     });
-    QUnit.triggerEvent(element, "click");
-    QUnit.triggerEvent(element, "mousedown");
+    happen.click(element);
+    happen.mousedown(element);
     
     start();
   });

@@ -159,3 +159,19 @@ test("Test - with only a classRegExp", function() {
   });
   equal(result, alignedDiv);
 });
+
+test("Test with parent container limit", function() {
+  this.container.innerHTML = '<div><div><p><span>foo</span></p></div></div>';
+  
+  var spanElement = this.container.querySelector("span"),
+      limitEl  = this.container.querySelector("p"),
+      nestedDiv = this.container.querySelector("div").querySelector("div"),
+      result;
+  
+  result = wysihtml5.dom.getParentElement(spanElement, {
+    nodeName: "DIV"
+  }, false, limitEl);
+
+  equal(result, null);
+});
+
