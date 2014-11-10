@@ -1,10 +1,11 @@
+h1. *This project was initiated by "XING AG":https://www.xing.com* but it no longer developed.
+Please use the fork at https://github.com/Edicy/wysihtml5
+
 h1. wysihtml5 0.3.0
 
 wysihtml5 is an open source rich text editor based on HTML5 technology and the progressive-enhancement approach.
 It uses a sophisticated security concept and aims to generate fully valid HTML5 markup by preventing unmaintainable tag soups and inline styles.
 The code is completely library agnostic: No jQuery, Prototype or similar is required.
-
-*This project was initiated and is supported by the "XING AG":https://www.xing.com*. Thanks!
 
 h2. Features
 
