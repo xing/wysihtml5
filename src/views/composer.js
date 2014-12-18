@@ -160,6 +160,7 @@
       if (name) {
         dom.addClass(this.element, name);
         dom.addClass(this.iframe, name);
+        this.iframe.name = name;
       }
       
       this.enable();
