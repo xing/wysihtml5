@@ -36,8 +36,13 @@ wysihtml5.commands.insertUnorderedList = {
       isEmpty = tempElement.innerHTML === "" || tempElement.innerHTML === wysihtml5.INVISIBLE_SPACE || tempElement.innerHTML === "<br>";
       composer.selection.executeAndRestore(function() {
         list = wysihtml5.dom.convertToList(tempElement, "ul");
+        for(var i = 0; i < list.children.length; i++) {
+          if (list.children[i].innerText.length <= 1) {
+            list.children[i].innerHTML = '';
+          }
+        }
       });
-      if (isEmpty) {
+      if (isEmpty || list.children[0].innerText.length <= 1) {
         composer.selection.selectNode(list.querySelector("li"), true);
       }
     }
