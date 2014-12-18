@@ -231,15 +231,18 @@ wysihtml5.dom.parse = (function() {
       attributes = wysihtml5.lang.object(setAttributes).clone();
     }
     
-    if (checkAttributes) {
+     if (checkAttributes) {
       for (attributeName in checkAttributes) {
         method = attributeCheckMethods[checkAttributes[attributeName]];
         if (!method) {
           continue;
         }
-        newAttributeValue = method(_getAttribute(oldNode, attributeName));
-        if (typeof(newAttributeValue) === "string") {
-          attributes[attributeName] = newAttributeValue;
+        oldAttribute = _getAttribute(oldNode, attributeName);
+        if (oldAttribute) {
+          newAttributeValue = method(oldAttribute);
+          if (typeof(newAttributeValue) === "string") {
+            attributes[attributeName] = newAttributeValue;
+          }
         }
       }
     }
