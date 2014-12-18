@@ -148,7 +148,9 @@ asyncTest("Check insertion of single stylesheet", function() {
   new wysihtml5.dom.Sandbox(function(sandbox) {
     var doc = sandbox.getDocument();
     equal(doc.getElementsByTagName("link").length, 1, "Correct amount of stylesheets inserted into the dom tree");
-    start();
+    setTimeout(function(){
+      start();
+    }, 2000);
   }, {
     stylesheets: "https://ajax.googleapis.com/ajax/libs/jqueryui/1.7.2/themes/blitzer/jquery-ui.css"
   }).insertInto(document.body);
@@ -161,7 +163,9 @@ asyncTest("Check insertion of multiple stylesheets", function() {
   new wysihtml5.dom.Sandbox(function(sandbox) {
     var doc = sandbox.getDocument();
     equal(doc.getElementsByTagName("link").length, 2, "Correct amount of stylesheets inserted into the dom tree");
-    start();
+    setTimeout(function(){
+      start();
+    }, 2000);
   }, {
     stylesheets: [
       "https://ajax.googleapis.com/ajax/libs/jqueryui/1.7.2/themes/blitzer/jquery-ui.css",
@@ -179,6 +183,8 @@ asyncTest("Check X-UA-Compatible", function() {
         docMode             = doc.documentMode;
     
     ok(doc.documentMode === document.documentMode, "iFrame is in in the same document mode as the parent site");
-    start();
+    setTimeout(function() {
+      start();
+    }, 2000);
   }).insertInto(document.body);
 });
