@@ -12,11 +12,7 @@
       /**
        * Map keyCodes to query commands
        */
-      shortcuts = {
-        "66": "bold",     // B
-        "73": "italic",   // I
-        "85": "underline" // U
-      };
+      shortcuts = {};
   
   wysihtml5.views.Composer.prototype.observe = function() {
     var that                = this,
@@ -24,7 +20,8 @@
         iframe              = this.sandbox.getIframe(),
         element             = this.element,
         focusBlurElement    = browser.supportsEventsInIframeCorrectly() ? element : this.sandbox.getWindow(),
-        pasteEvents         = ["drop", "paste"];
+        pasteEvents         = ["drop", "paste"],
+        shortcuts           = that.commands.editor.config.shortcuts;
 
     // --------- destroy:composer event ---------
     dom.observe(iframe, "DOMNodeRemoved", function() {
@@ -121,9 +118,16 @@
     // --------- Shortcut logic ---------
     dom.observe(element, "keydown", function(event) {
       var keyCode  = event.keyCode,
-          command  = shortcuts[keyCode];
+          shiftModifyer = event.shiftKey ? "shift+" : "",
+          command  = shortcuts[shiftModifyer+keyCode];
       if ((event.ctrlKey || event.metaKey) && !event.altKey && command) {
-        that.commands.exec(command);
+        var commandObj = that.commands.editor.toolbar.commandMapping[command + ":null"];
+        // Show dialog when available
+        if (commandObj && commandObj.dialog && !commandObj.state) {
+            commandObj.dialog.show();
+        } else {
+            that.commands.exec(command);
+        }
         event.preventDefault();
       }
     });
