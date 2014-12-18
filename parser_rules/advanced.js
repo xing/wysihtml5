@@ -95,11 +95,12 @@ var wysihtml5ParserRules = {
      *    - set_attributes:     sets/overrides the given attributes
      *
      *    - check_attributes:   checks the given HTML attribute via the given method
-     *                            - url:            allows only valid urls (starting with http:// or https://)
-     *                            - src:            allows something like "/foobar.jpg", "http://google.com", ...
-     *                            - href:           allows something like "mailto:bert@foo.com", "http://google.com", "/foobar.jpg"
-     *                            - alt:            strips unwanted characters. if the attribute is not set, then it gets set (to ensure valid and compatible HTML)
+     *                            - url:      allows only valid urls (starting with http:// or https://)
+     *                            - src:      allows something like "/foobar.jpg", "http://google.com", ...
+     *                            - href:     allows something like "mailto:bert@foo.com", "http://google.com", "/foobar.jpg"
+     *                            - alt:      strips unwanted characters. if the attribute is not set, then it gets set (to ensure valid and compatible HTML)
      *                            - numbers:  ensures that the attribute only contains numeric characters
+     *                            - boolean:  allows truthy values for attributes like checked, selected, autofocus, allowtransparency, etc...
      */
     "tags": {
         "tr": {
