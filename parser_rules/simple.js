@@ -21,10 +21,10 @@ var wysihtml5ParserRules = {
     li:     {},
     a:      {
       set_attributes: {
-        target: "_blank",
         rel:    "nofollow"
       },
       check_attributes: {
+        target: "preserve", // If a user specifies a target, we should keep it that way.
         href:   "url" // important to avoid XSS
       }
     }
