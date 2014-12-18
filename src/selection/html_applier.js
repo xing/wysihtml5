@@ -8,14 +8,20 @@
  */
 (function(wysihtml5, rangy) {
   var defaultTagName = "span";
-  
+
   var REG_EXP_WHITE_SPACE = /\s+/g;
-  
+  var REG_EXP_BREAK = /[\t\r\n]/g;
+
   function hasClass(el, cssClass, regExp) {
+    var className = " " + cssClass + " ";
     if (!el.className) {
       return false;
     }
-    
+
+    if ((" " + el.className + " ").replace(REG_EXP_BREAK, " ").indexOf(className) > -1) {
+      return true;
+    }
+
     var matchingClassNames = el.className.match(regExp) || [];
     return matchingClassNames[matchingClassNames.length - 1] === cssClass;
   }
@@ -34,7 +40,7 @@
       el.className = el.className.replace(regExp, "");
     }
   }
-  
+
   function hasSameClasses(el1, el2) {
     return el1.className.replace(REG_EXP_WHITE_SPACE, " ") == el2.className.replace(REG_EXP_WHITE_SPACE, " ");
   }
@@ -107,7 +113,7 @@
     }
     return (descendantNode == node) ? newNode : splitNodeAt(node, newNode.parentNode, rangy.dom.getNodeIndex(newNode));
   }
-  
+
   function Merge(firstNode) {
     this.isElementMerge = (firstNode.nodeType == wysihtml5.ELEMENT_NODE);
     this.firstTextNode = this.isElementMerge ? firstNode.lastChild : firstNode;
@@ -223,7 +229,7 @@
         range.setEnd(rangeEndNode, rangeEndOffset);
       }
     },
-    
+
     getAdjacentMergeableTextNode: function(node, forward) {
         var isTextNode = (node.nodeType == wysihtml5.TEXT_NODE);
         var el = isTextNode ? node.parentNode : node;
@@ -244,7 +250,7 @@
         }
         return null;
     },
-    
+
     areElementsMergeable: function(el1, el2) {
       return rangy.dom.arrayContains(this.tagNames, (el1.tagName || "").toLowerCase())
         && rangy.dom.arrayContains(this.tagNames, (el2.tagName || "").toLowerCase())
@@ -291,7 +297,7 @@
           ancestorWithClass = splitNodeAt(ancestorWithClass, range.startContainer, range.startOffset);
         }
       }
-      
+
       if (this.similarClassRegExp) {
         removeClass(ancestorWithClass, this.similarClassRegExp);
       }
@@ -310,10 +316,10 @@
             return;
           } catch(e) {}
         }
-        
+
         range.splitBoundaries();
         textNodes = range.getNodes([wysihtml5.TEXT_NODE]);
-        
+
         if (textNodes.length) {
           var textNode;
 
@@ -323,11 +329,11 @@
               this.applyToTextNode(textNode);
             }
           }
-          
+
           range.setStart(textNodes[0], 0);
           textNode = textNodes[textNodes.length - 1];
           range.setEnd(textNode, textNode.length);
-          
+
           if (this.normalize) {
             this.postApply(textNodes, range);
           }
@@ -346,7 +352,7 @@
         range.selectNode(node);
         textNodes = [node];
       }
-      
+
       for (var i = 0, len = textNodes.length; i < len; ++i) {
         textNode = textNodes[i];
         ancestorWithClass = this.getAncestorWithClass(textNode);
@@ -354,7 +360,7 @@
           this.undoToTextNode(textNode, range, ancestorWithClass);
         }
       }
-      
+
       if (len == 1) {
         this.selectNode(range, textNodes[0]);
       } else {
@@ -367,7 +373,7 @@
         }
       }
     },
-    
+
     selectNode: function(range, node) {
       var isElement       = node.nodeType === wysihtml5.ELEMENT_NODE,
           canHaveHTML     = "canHaveHTML" in node ? node.canHaveHTML : true,
@@ -386,7 +392,7 @@
         range.setEndAfter(node);
       }
     },
-    
+
     getTextSelectedByRange: function(textNode, range) {
       var textRange = range.cloneRange();
       textRange.selectNodeContents(textNode);
@@ -406,7 +412,7 @@
         ancestor = this.getAncestorWithClass(range.startContainer);
         return ancestor ? [ancestor] : false;
       }
-      
+
       for (var i = 0, len = textNodes.length, selectedText; i < len; ++i) {
         selectedText = this.getTextSelectedByRange(textNodes[i], range);
         ancestor = this.getAncestorWithClass(textNodes[i]);
@@ -429,5 +435,5 @@
   };
 
   wysihtml5.selection.HTMLApplier = HTMLApplier;
-  
+
 })(wysihtml5, rangy);
