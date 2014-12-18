@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+  <meta http-equiv="X-UA-Compatible" content="IE=Edge">
+  <meta charset="utf-8">
+
+  <title>wysihtml5 - Simple Demo - 2 Editors</title>
+
+  <link rel="stylesheet" type="text/css" href="css/stylesheet.css">
+
+  <style>
+    body {
+      font-family: Verdana;
+      font-size: 11px;
+    }
+
+    h2 {
+      margin-bottom: 0;
+    }
+
+    small {
+      display: block;
+      margin-top: 40px;
+      font-size: 9px;
+    }
+
+    small,
+    small a {
+      color: #666;
+    }
+
+    a {
+      color: #000;
+      text-decoration: underline;
+      cursor: pointer;
+    }
+
+    /* ----- */
+
+    #toolbar [data-wysihtml5-action] {
+      float: right;
+      margin-right: 10px;
+    }
+
+    #toolbar,
+    textarea {
+      width: 600px;
+      padding: 5px;
+    }
+
+    textarea {
+      height: 280px;
+      border: 2px solid green;
+      box-sizing: boder-box;
+      -webkit-box-sizing: border-box;
+      -ms-box-sizing: border-box;
+      -moz-box-sizing: border-box;
+      font-family: Verdana;
+      font-size: 11px;
+    }
+
+    textarea:focus {
+      color: black;
+      border: 2px solid black;
+    }
+
+    .wysihtml5-command-active {
+      font-weight: bold;
+    }
+  </style>
+
+<script src="../parser_rules/simple.js"></script>
+
+<script src="../dist/wysihtml5-0.3.0-mod.js"></script>
+
+<script>
+
+  var init = function(){
+
+    var editor1 = new wysihtml5.Editor("textarea1", {
+      parserRules: wysihtml5ParserRules,
+    });
+
+    var editor2 = new wysihtml5.Editor("textarea2", {
+      parserRules: wysihtml5ParserRules
+    });
+
+    var log = document.getElementById("log");
+    var toolbar = document.getElementById("toolbar");
+
+    editor1
+      .on("beforeload", function() {
+        log.innerHTML += "<div>beforeload</div>";
+      })
+      .on("load", function() {
+        log.innerHTML += "<div>load</div>";
+      })
+      .on("focus", function() {
+        log.innerHTML += "<div>focus - editor1</div>";
+          // If another app has focus and we click on editable area we get 2 x focus events.
+          if ( !editor1.toolbar ){
+            // create the toolbar
+            editor1.toolbar = new wysihtml5.toolbar.Toolbar( editor1, "toolbar" );
+          }
+      })
+      .on("blur", function() {
+        log.innerHTML += "<div>blur - editor1</div>";
+          // If click on another app we get 2 x blur events.
+          if ( editor1.toolbar ){
+            editor1.toolbar.destroy();
+            delete editor1.toolbar;
+          }
+      })
+      .on("change", function() {
+        log.innerHTML += "<div>change</div>";
+      })
+      .on("paste", function() {
+        log.innerHTML += "<div>paste</div>";
+      })
+      .on("newword:composer", function() {
+        log.innerHTML += "<div>newword:composer</div>";
+      })
+      .on("undo:composer", function() {
+        log.innerHTML += "<div>undo:composer</div>";
+      })
+      .on("redo:composer", function() {
+        log.innerHTML += "<div>redo:composer</div>";
+      });
+
+
+    editor2
+      .on("focus", function() {
+        log.innerHTML += "<div>focus editor2</div>";
+          editor2.toolbar = new wysihtml5.toolbar.Toolbar( editor2, "toolbar" );
+      })
+      .on("blur", function() {
+        log.innerHTML += "<div>blur editor2</div>";
+          if ( editor2.toolbar ){ // see cmt above
+            editor2.toolbar.destroy();
+            delete editor2.toolbar;
+          }
+      });
+
+    }
+
+    document.addEventListener("DOMContentLoaded", init, false );
+
+</script>
+
+</head>
+
+<body>
+
+  <h1>wysihtml5 - Simple Two Editor Example with Single Toolbar</h1>
+
+  <p>
+    Uses a custom rule set that allows the following elements: <em>strong, b, em, i, a, span</em><br>
+    Links will automatically receive <i>target="_blank"</i> and <i>rel="nofollow"</i>. Check the source code of this page.
+  </p>
+
+  <form>
+    <div id="toolbar" style="display: none;">
+      <a data-wysihtml5-command="bold" title="CTRL+B">bold</a> |
+      <a data-wysihtml5-command="italic" title="CTRL+I">italic</a>
+      <a data-wysihtml5-action="change_view">switch to html view</a>
+    </div>
+
+    <textarea id="textarea1" placeholder="Enter text ..."></textarea>
+
+    <textarea id="textarea2" placeholder="Enter text ..."></textarea>
+
+    <br><input type="reset" value="Reset form!">
+
+  </form>
+
+  <h2>Events:</h2>
+  <div id="log"></div>
+
+</body>
+
+</html>
