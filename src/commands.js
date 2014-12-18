@@ -48,6 +48,13 @@ wysihtml5.Commands = Base.extend(
         result = this.doc.execCommand(command, false, value);
       } catch(e) {}
     }
+
+	/*custom dialog action for the toolbar part #1
+	if you want to add some custom dialog actions, the "unobserve blur" is not fired.
+	use " data-wysihtml5-command="" " if you want to add custom dialog actions to the toolbar */
+	if (command === ""){		  
+		this.editor.fire("custom:command");
+	}
     
     this.editor.fire("aftercommand:composer");
     return result;
