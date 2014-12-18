@@ -33,6 +33,20 @@
 
       this._observe();
       this.show();
+
+      if (editor.config.classNameCommandDisabled != null) {
+        CLASS_NAME_COMMAND_DISABLED = editor.config.classNameCommandDisabled;
+      }
+      if (editor.config.classNameCommandsDisabled != null) {
+        CLASS_NAME_COMMANDS_DISABLED = editor.config.classNameCommandsDisabled;
+      }
+      if (editor.config.classNameCommandActive != null) {
+        CLASS_NAME_COMMAND_ACTIVE = editor.config.classNameCommandActive;
+      }
+      if (editor.config.classNameActionActive != null) {
+        CLASS_NAME_ACTION_ACTIVE = editor.config.classNameActionActive;
+      }
+
       
       var speechInputLinks  = this.container.querySelectorAll("[data-wysihtml5-command=insertSpeech]"),
           length            = speechInputLinks.length,
