@@ -171,6 +171,35 @@ asyncTest("Check insertion of multiple stylesheets", function() {
 });
 
 
+asyncTest("Check insertion of single javascript", function() {
+  expect(1);
+
+  new wysihtml5.dom.Sandbox(function(sandbox) {
+    var doc = sandbox.getDocument();
+    equal(doc.getElementsByTagName("script").length, 1, "Correct amount of javascripts inserted into the dom tree");
+    start();
+  }, {
+    javascripts: "http://yui.yahooapis.com/2.9.0/build/yahoo-dom-event/yahoo-dom-event.js",
+  }).insertInto(document.body);
+});
+
+
+asyncTest("Check insertion of multiple javascripts", function() {
+  expect(1);
+
+  new wysihtml5.dom.Sandbox(function(sandbox) {
+    var doc = sandbox.getDocument();
+    equal(doc.getElementsByTagName("script").length, 2, "Correct amount of javascripts inserted into the dom tree");
+    start();
+  }, {
+    javascripts: [
+      "http://yui.yahooapis.com/2.9.0/build/yahoo-dom-event/yahoo-dom-event.js",
+      "http://yui.yahooapis.com/2.9.0/build/animation/animation-min.js"
+    ]
+  }).insertInto(document.body);
+});
+
+
 asyncTest("Check X-UA-Compatible", function() {
   expect(1);
   

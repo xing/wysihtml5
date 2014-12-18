@@ -166,6 +166,8 @@
       this.getWindow = function() { return iframe.contentWindow; };
       this.getDocument = function() { return iframe.contentWindow.document; };
 
+      this._insertJavascripts();
+
       // Catch js errors and pass them to the parent's onerror event
       // addEventListener("error") doesn't work properly in some browsers
       // TODO: apparently this doesn't work in IE9!
@@ -221,6 +223,26 @@
         + '<body></body></html>'
       ).interpolate(templateVars);
     },
+
+    _insertJavascripts: function() {
+      var script      = null,
+          doc         = this.getDocument(),
+          head        = doc.head,
+          javascripts = this.config.javascripts,
+          i           = 0;
+
+      javascripts = typeof(javascripts) === "string" ? [javascripts] : javascripts;
+
+      if (javascripts) {
+        length = javascripts.length;
+        for (; i<length; i++) {
+          script = doc.createElement("script");
+          script.src = javascripts[i];
+          head.appendChild(script);
+        }
+      }
+    },
+
 
     /**
      * Method to unset/override existing variables

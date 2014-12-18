@@ -112,7 +112,8 @@
       this.sandbox = new dom.Sandbox(function() {
         that._create();
       }, {
-        stylesheets:  this.config.stylesheets
+        stylesheets:  this.config.stylesheets,
+        javascripts:  this.config.javascripts
       });
       this.iframe  = this.sandbox.getIframe();
       
