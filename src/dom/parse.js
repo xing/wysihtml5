@@ -418,9 +418,9 @@ wysihtml5.dom.parse = (function() {
     })(),
     
     numbers: (function() {
-      var REG_EXP = /\D/g;
+      var REG_EXP = /\d+\.?\d*/g;
       return function(attributeValue) {
-        attributeValue = (attributeValue || "").replace(REG_EXP, "");
+        attributeValue = ((attributeValue || "").match(REG_EXP) || [''])[0];
         return attributeValue || null;
       };
     })()
