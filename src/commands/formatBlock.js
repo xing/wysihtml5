@@ -12,7 +12,7 @@
   function _addClass(element, className, classRegExp) {
     if (element.className) {
       _removeClass(element, classRegExp);
-      element.className += " " + className;
+      element.className = wysihtml5.lang.string(element.className + " " + className).trim();
     } else {
       element.className = className;
     }
