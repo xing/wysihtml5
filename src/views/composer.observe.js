@@ -67,6 +67,11 @@
       }, 0);
     });
 
+    // --------- Proxy events ---------
+    dom.observe(element, ["keyup", "keydown", "keypress"], function(event) {
+        that.parent.fire(event.type, event).fire(event.type + ":composer", event);
+    });
+
     // --------- neword event ---------
     dom.observe(element, "keyup", function(event) {
       var keyCode = event.keyCode;
