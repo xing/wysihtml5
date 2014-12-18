@@ -179,6 +179,9 @@ var wysihtml5ParserRules = {
             "rename_tag": "div"
         },
         "a": {
+            "allow_attributes": [
+                "title"
+            ],
             "check_attributes": {
                 "href": "url" // if you compiled master manually then change this from 'url' to 'href'
             },
@@ -188,6 +191,9 @@ var wysihtml5ParserRules = {
             }
         },
         "img": {
+            "allow_attributes": [
+                "title"
+            ],
             "check_attributes": {
                 "width": "numbers",
                 "alt": "alt",

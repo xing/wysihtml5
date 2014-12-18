@@ -20,6 +20,9 @@ var wysihtml5ParserRules = {
     ol:     {},
     li:     {},
     a:      {
+      allow_attributes: [
+        "title"
+      ],
       set_attributes: {
         target: "_blank",
         rel:    "nofollow"
