@@ -3725,6 +3725,18 @@ wysihtml5.browser = (function() {
      */
     hasIframeFocusIssue: function() {
       return isIE;
+    },
+    
+    /**
+     * Chrome + Safari create invalid nested markup after paste
+     * 
+     *  <p>
+     *    foo
+     *    <p>bar</p> <!-- BOO! -->
+     *  </p>
+     */
+    createsNestedInvalidMarkupAfterPaste: function() {
+      return isWebKit;
     }
   };
 })();wysihtml5.lang.array = function(arr) {
@@ -3941,6 +3953,7 @@ wysihtml5.browser = (function() {
        *    (^|[\>\(\{\[\s\>])
        */
       URL_REG_EXP           = /((https?:\/\/|www\.)[^\s<]{3,})/gi,
+      EMAIL_REG_EXP         = /^\w+@[a-zA-Z_]+?\.[a-zA-Z]{2,3}$/,
       TRAILING_CHAR_REG_EXP = /([^\w\/\-](,?))$/i,
       MAX_DISPLAY_LENGTH    = 100,
       BRACKETS              = { ")": "(", "]": "[", "}": "{" };
@@ -3984,6 +3997,32 @@ wysihtml5.browser = (function() {
       return '<a href="' + realUrl + '">' + displayUrl + '</a>' + punctuation;
     });
   }
+
+  /**
+    * This is a copy of the _convertUrlsToLinks function to add mailto: to email addresses
+    */
+  function _convertEmailsToLinks(str) {
+    console.log('hello');
+    return str.replace(EMAIL_REG_EXP, function(url) {
+      var punctuation = (url.match(TRAILING_CHAR_REG_EXP) || [])[1] || "",
+          opening     = BRACKETS[punctuation];
+      url = url.replace(TRAILING_CHAR_REG_EXP, "");
+
+      if (url.split(opening).length > url.split(punctuation).length) {
+        url = url + punctuation;
+        punctuation = "";
+      }
+      var realUrl    = url,
+          displayUrl = url;
+      if (url.length > MAX_DISPLAY_LENGTH) {
+        displayUrl = displayUrl.substr(0, MAX_DISPLAY_LENGTH) + "...";
+      }
+      // Add http prefix if necessary
+      realUrl = "mailto:" + realUrl;
+      
+      return '<a href="' + realUrl + '">' + displayUrl + '</a>' + punctuation;
+    });
+  }
   
   /**
    * Creates or (if already cached) returns a temp element
@@ -4007,6 +4046,25 @@ wysihtml5.browser = (function() {
     // We need to insert an empty/temporary <span /> to fix IE quirks
     // Elsewise IE would strip white space in the beginning
     tempElement.innerHTML = "<span></span>" + _convertUrlsToLinks(textNode.data);
+    tempElement.removeChild(tempElement.firstChild);
+    
+    while (tempElement.firstChild) {
+      // inserts tempElement.firstChild before textNode
+      parentNode.insertBefore(tempElement.firstChild, textNode);
+    }
+    parentNode.removeChild(textNode);
+  }
+
+  /**
+   * Replaces the original text nodes with the newly auto-mail dom tree
+   */
+  function _wrapEmailMatchesInNode(textNode) {
+    var parentNode  = textNode.parentNode,
+        tempElement = _getTempElement(parentNode.ownerDocument);
+    
+    // We need to insert an empty/temporary <span /> to fix IE quirks
+    // Elsewise IE would strip white space in the beginning
+    tempElement.innerHTML = "<span></span>" + _convertEmailsToLinks(textNode.data);
     tempElement.removeChild(tempElement.firstChild);
     
     while (tempElement.firstChild) {
@@ -4039,6 +4097,11 @@ wysihtml5.browser = (function() {
       _wrapMatchesInNode(element);
       return;
     }
+
+    if (element.nodeType === wysihtml5.TEXT_NODE && element.data.match(EMAIL_REG_EXP)) {
+      _wrapEmailMatchesInNode(element);
+      return;
+    }
     
     var childNodes        = wysihtml5.lang.array(element.childNodes).get(),
         childNodesLength  = childNodes.length,
@@ -4055,6 +4118,7 @@ wysihtml5.browser = (function() {
   
   // Reveal url reg exp to the outside
   wysihtml5.dom.autoLink.URL_REG_EXP = URL_REG_EXP;
+  wysihtml5.dom.autoLink.EMAIL_REG_EXP = EMAIL_REG_EXP;
 })(wysihtml5);(function(wysihtml5) {
   var api = wysihtml5.dom;
   
@@ -4792,9 +4856,9 @@ wysihtml5.dom.parse = (function() {
     }
     
     while (element.firstChild) {
-      firstChild  = element.firstChild;
-      element.removeChild(firstChild);
+      firstChild = element.firstChild;
       newNode = _convert(firstChild, cleanUp);
+      element.removeChild(firstChild);
       if (newNode) {
         fragment.appendChild(newNode);
       }
@@ -4815,6 +4879,7 @@ wysihtml5.dom.parse = (function() {
         oldChildsLength = oldChilds.length,
         method          = NODE_TYPE_MAPPING[oldNodeType],
         i               = 0,
+        fragment,
         newNode,
         newChild;
     
@@ -4833,10 +4898,13 @@ wysihtml5.dom.parse = (function() {
     
     // Cleanup senseless <span> elements
     if (cleanUp &&
-        newNode.childNodes.length <= 1 &&
         newNode.nodeName.toLowerCase() === DEFAULT_NODE_NAME &&
-        !newNode.attributes.length) {
-      return newNode.firstChild;
+        (!newNode.childNodes.length || !newNode.attributes.length)) {
+      fragment = newNode.ownerDocument.createDocumentFragment();
+      while (newNode.firstChild) {
+        fragment.appendChild(newNode.firstChild);
+      }
+      return fragment;
     }
     
     return newNode;
@@ -5054,8 +5122,17 @@ wysihtml5.dom.parse = (function() {
     }
   }
   
+  var INVISIBLE_SPACE_REG_EXP = /\uFEFF/g;
   function _handleText(oldNode) {
-    return oldNode.ownerDocument.createTextNode(oldNode.data);
+    var nextSibling = oldNode.nextSibling;
+    if (nextSibling && nextSibling.nodeType === wysihtml5.TEXT_NODE) {
+      // Concatenate text nodes
+      nextSibling.data = oldNode.data + nextSibling.data;
+    } else {
+      // \uFEFF = wysihtml5.INVISIBLE_SPACE (used as a hack in certain rich text editing situations)
+      var data = oldNode.data.replace(INVISIBLE_SPACE_REG_EXP, "");
+      return oldNode.ownerDocument.createTextNode(data);
+    } 
   }
   
   
@@ -7896,11 +7973,6 @@ wysihtml5.views.View = Base.extend(
         value = this.parent.parse(value);
       }
 
-      // Replace all "zero width no breaking space" chars
-      // which are used as hacks to enable some functionalities
-      // Also remove all CARET hacks that somehow got left
-      value = wysihtml5.lang.string(value).replace(wysihtml5.INVISIBLE_SPACE).by("");
-
       return value;
     },
 
@@ -8098,7 +8170,7 @@ wysihtml5.views.View = Base.extend(
       // OR when he supports auto linking but we were able to turn it off (IE9+)
       if (!supportsAutoLinking || (supportsAutoLinking && supportsDisablingOfAutoLinking)) {
         this.parent.on("newword:composer", function() {
-          if (dom.getTextContent(that.element).match(dom.autoLink.URL_REG_EXP)) {
+          if (dom.getTextContent(that.element).match(dom.autoLink.URL_REG_EXP) || dom.getTextContent(that.element).match(dom.autoLink.EMAIL_REG_EXP)) {
             that.selection.executeAndRestore(function(startContainer, endContainer) {
               dom.autoLink(endContainer.parentNode);
             });
@@ -8228,6 +8300,16 @@ wysihtml5.views.View = Base.extend(
           }
         });
       }
+      
+      // Under certain circumstances Chrome + Safari create nested <p> or <hX> tags after paste
+      // Inserting an invisible white space in front of it fixes the issue
+      if (browser.createsNestedInvalidMarkupAfterPaste()) {
+        dom.observe(this.element, "paste", function(event) {
+          var invisibleSpace = that.doc.createTextNode(wysihtml5.INVISIBLE_SPACE);
+          that.selection.insertNode(invisibleSpace);
+        });
+      }
+
       
       dom.observe(this.doc, "keydown", function(event) {
         var keyCode = event.keyCode;
@@ -9459,7 +9541,9 @@ wysihtml5.views.Textarea = wysihtml5.views.View.extend(
     // Placeholder text to use, defaults to the placeholder attribute on the textarea element
     placeholderText:      undef,
     // Whether the rich text editor should be rendered on touch devices (wysihtml5 >= 0.3.0 comes with basic support for iOS 5)
-    supportTouchDevices:  true
+    supportTouchDevices:  true,
+    // Whether senseless <span> elements (empty or without attributes) should be removed/replaced with their content
+    cleanUp:              true
   };
   
   wysihtml5.Editor = wysihtml5.lang.Dispatcher.extend(
@@ -9554,7 +9638,7 @@ wysihtml5.views.Textarea = wysihtml5.views.View.extend(
     },
     
     parse: function(htmlOrElement) {
-      var returnValue = this.config.parser(htmlOrElement, this.config.parserRules, this.composer.sandbox.getDocument(), true);
+      var returnValue = this.config.parser(htmlOrElement, this.config.parserRules, this.composer.sandbox.getDocument(), this.config.cleanUp);
       if (typeof(htmlOrElement) === "object") {
         wysihtml5.quirks.redraw(htmlOrElement);
       }

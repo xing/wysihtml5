@@ -223,7 +223,7 @@
       // OR when he supports auto linking but we were able to turn it off (IE9+)
       if (!supportsAutoLinking || (supportsAutoLinking && supportsDisablingOfAutoLinking)) {
         this.parent.on("newword:composer", function() {
-          if (dom.getTextContent(that.element).match(dom.autoLink.URL_REG_EXP)) {
+          if (dom.getTextContent(that.element).match(dom.autoLink.URL_REG_EXP) || dom.getTextContent(that.element).match(dom.autoLink.EMAIL_REG_EXP)) {
             that.selection.executeAndRestore(function(startContainer, endContainer) {
               dom.autoLink(endContainer.parentNode);
             });
