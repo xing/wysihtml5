@@ -108,7 +108,15 @@
           length  = fields.length,
           i       = 0;
       for (; i<length; i++) {
-        data[fields[i].getAttribute(ATTRIBUTE_FIELDS)] = fields[i].value;
+        if (fields[i].type == "checkbox") {
+          if (fields[i].checked) {
+            data[fields[i].getAttribute(ATTRIBUTE_FIELDS)] = fields[i].value;
+          } else {
+            data[fields[i].getAttribute(ATTRIBUTE_FIELDS)] = "";
+          }
+        } else {
+          data[fields[i].getAttribute(ATTRIBUTE_FIELDS)] = fields[i].value;
+        }
       }
       return data;
     },
@@ -155,7 +163,11 @@
         
         fieldName = field.getAttribute(ATTRIBUTE_FIELDS);
         newValue  = this.elementToChange ? (this.elementToChange[fieldName] || "") : field.defaultValue;
-        field.value = newValue;
+        if (field.type === 'checkbox') {
+          field.checked = newValue == field.value;
+        } else {
+          field.value = newValue;
+        }
       }
     },
 
