@@ -52,6 +52,14 @@
     },
 
     /**
+     * Deactivate editor (make it readonly)
+     */
+    disable: function() {
+      this._domObserveSubmit.stop();
+      this._domObserveReset.stop();
+    },
+
+    /**
      * Initializes interval-based syncing
      * also makes sure that on-submit the composer's content is synced with the textarea
      * immediately when the form gets submitted
@@ -73,10 +81,10 @@
       if (form) {
         // If the textarea is in a form make sure that after onreset and onsubmit the composer
         // has the correct state
-        wysihtml5.dom.observe(form, "submit", function() {
+        this._domObserveSubmit = wysihtml5.dom.observe(form, "submit", function() {
           that.sync(true);
         });
-        wysihtml5.dom.observe(form, "reset", function() {
+        this._domObserveReset = wysihtml5.dom.observe(form, "reset", function() {
           setTimeout(function() { that.fromTextareaToComposer(); }, 0);
         });
       }
