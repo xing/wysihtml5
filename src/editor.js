@@ -133,6 +133,7 @@
      * Deactivate editor (make it readonly)
      */
     disable: function() {
+      this.synchronizer.disable();
       this.currentView.disable();
       return this;
     },
