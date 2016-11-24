@@ -29,11 +29,12 @@
  *    </script>
  */
 (function(wysihtml5) {
-  var dom                     = wysihtml5.dom,
-      CLASS_NAME_OPENED       = "wysihtml5-command-dialog-opened",
-      SELECTOR_FORM_ELEMENTS  = "input, select, textarea",
-      SELECTOR_FIELDS         = "[data-wysihtml5-dialog-field]",
-      ATTRIBUTE_FIELDS        = "data-wysihtml5-dialog-field";
+  var dom                      = wysihtml5.dom,
+      CLASS_NAME_OPENED        = "wysihtml5-command-dialog-opened",
+      SELECTOR_FORM_ELEMENTS   = "input, select, textarea",
+      SELECTOR_FIELDS          = "[data-wysihtml5-dialog-field]",
+      SELECTOR_FIELDS_NOHIDDEN = "[data-wysihtml5-dialog-field]:not([type=hidden])",
+      ATTRIBUTE_FIELDS         = "data-wysihtml5-dialog-field";
       
   
   wysihtml5.toolbar.Dialog = wysihtml5.lang.Dispatcher.extend(
@@ -136,7 +137,7 @@
           fieldName,
           newValue,
           focusedElement = document.querySelector(":focus"),
-          fields         = this.container.querySelectorAll(SELECTOR_FIELDS),
+          fields         = this.container.querySelectorAll(avoidHiddenFields ? SELECTOR_FIELDS_NOHIDDEN : SELECTOR_FIELDS),
           length         = fields.length,
           i              = 0;
       for (; i<length; i++) {
