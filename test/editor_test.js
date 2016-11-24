@@ -232,17 +232,21 @@ if (wysihtml5.browser.supported()) {
 
 
   asyncTest("Check sync (basic)", function() {
-    expect(1);
+    expect(2);
     
     var that = this;
     
     var editor = new wysihtml5.Editor(this.textareaElement);
     editor.on("load", function() {
       var html = "<p>hello foobar, what up?</p>";
+      var changeFired = false;
+      wysihtml5.dom.observe(this.textareaElement, ['change'], function() { changeFired = true; });
+
       that.getComposerElement().innerHTML = html;
     
       setTimeout(function() {
         equal(that.textareaElement.value.toLowerCase(), html.toLowerCase(), "Editor content got correctly copied over to original textarea");
+        equal(changeFired, true, "Textarea fired change event");
         start();
       }, 500);
     });
