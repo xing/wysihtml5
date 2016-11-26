@@ -5,12 +5,12 @@
  *      abcdefg|
  *   output:
  *      abcdefg<b>|</b>
- *   
+ *
  *   #2 unformatted text selected:
  *      abc|deg|h
  *   output:
  *      abc<b>|deg|</b>h
- *   
+ *
  *   #3 unformatted text selected across boundaries:
  *      ab|c <span>defg|h</span>
  *   output:
@@ -40,31 +40,34 @@
         "i":      "em"
       },
       htmlApplier = {};
-  
+
   function _getTagNames(tagName) {
     var alias = ALIAS_MAPPING[tagName];
     return alias ? [tagName.toLowerCase(), alias.toLowerCase()] : [tagName.toLowerCase()];
   }
-  
-  function _getApplier(tagName, className, classRegExp) {
+
+   /* Donna Start - Added attrs parameter. */
+  function _getApplier(tagName, className, classRegExp, attrs) {
     var identifier = tagName + ":" + className;
     if (!htmlApplier[identifier]) {
-      htmlApplier[identifier] = new wysihtml5.selection.HTMLApplier(_getTagNames(tagName), className, classRegExp, true);
+      htmlApplier[identifier] = new wysihtml5.selection.HTMLApplier(_getTagNames(tagName), className, classRegExp, true, attrs);
     }
     return htmlApplier[identifier];
   }
-  
+  /* Donna End */
+
+  /* Donna Start - Added attrs parameter. */
   wysihtml5.commands.formatInline = {
-    exec: function(composer, command, tagName, className, classRegExp) {
+    exec: function(composer, command, tagName, className, classRegExp, attrs) {
       var range = composer.selection.getRange();
       if (!range) {
         return false;
       }
-      _getApplier(tagName, className, classRegExp).toggleRange(range);
+      _getApplier(tagName, className, classRegExp, attrs).toggleRange(range);
       composer.selection.setSelection(range);
     },
 
-    state: function(composer, command, tagName, className, classRegExp) {
+    state: function(composer, command, tagName, className, classRegExp, attrs) {
       var doc           = composer.doc,
           aliasTagName  = ALIAS_MAPPING[tagName] || tagName,
           range;
@@ -81,11 +84,13 @@
       }
 
       range = composer.selection.getRange();
+
       if (!range) {
         return false;
       }
 
-      return _getApplier(tagName, className, classRegExp).isAppliedToRange(range);
+      return _getApplier(tagName, className, classRegExp, attrs).isAppliedToRange(range);
     }
+    /* Donna End */
   };
 })(wysihtml5);
