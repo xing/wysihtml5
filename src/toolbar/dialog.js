@@ -106,9 +106,19 @@
       var data    = this.elementToChange || {},
           fields  = this.container.querySelectorAll(SELECTOR_FIELDS),
           length  = fields.length,
+          dataField = null,
           i       = 0;
       for (; i<length; i++) {
-        data[fields[i].getAttribute(ATTRIBUTE_FIELDS)] = fields[i].value;
+        dataField = data[fields[i].getAttribute(ATTRIBUTE_FIELDS)];
+        if (fields[i].type == "checkbox") {
+          if (fields[i].checked) {
+            dataField = fields[i].value;
+          } else {
+            dataField = "";
+          }
+        } else {
+          dataField = fields[i].value;
+        }
       }
       return data;
     },
@@ -155,7 +165,11 @@
         
         fieldName = field.getAttribute(ATTRIBUTE_FIELDS);
         newValue  = this.elementToChange ? (this.elementToChange[fieldName] || "") : field.defaultValue;
-        field.value = newValue;
+        if (field.type === 'checkbox') {
+          field.checked = newValue == field.value;
+        } else {
+          field.value = newValue;
+        }
       }
     },
 
