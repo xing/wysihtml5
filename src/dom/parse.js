@@ -372,7 +372,7 @@ wysihtml5.dom.parse = (function() {
   // ------------ attribute checks ------------ \\
   var attributeCheckMethods = {
     url: (function() {
-      var REG_EXP = /^https?:\/\//i;
+      var REG_EXP = /^https?:\/\/|^\[[a-z_]+\]$/i;
       return function(attributeValue) {
         if (!attributeValue || !attributeValue.match(REG_EXP)) {
           return null;
@@ -396,7 +396,7 @@ wysihtml5.dom.parse = (function() {
     })(),
 
     href: (function() {
-      var REG_EXP = /^(\/|https?:\/\/|mailto:)/i;
+      var REG_EXP = /^(\/|https?:\/\/|mailto:|^\[[a-z_]+\]$)/i;
       return function(attributeValue) {
         if (!attributeValue || !attributeValue.match(REG_EXP)) {
           return null;
@@ -422,6 +422,13 @@ wysihtml5.dom.parse = (function() {
       return function(attributeValue) {
         attributeValue = (attributeValue || "").replace(REG_EXP, "");
         return attributeValue || null;
+      };
+    })(),
+
+    style: (function() {
+      var REG_EXP = /[^a-z0-9_\-]\:[^a-z0-9_\-];/gi;
+      return function(attributeValue) {
+        return attributeValue;
       };
     })()
   };

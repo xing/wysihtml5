@@ -169,13 +169,19 @@ if (wysihtml5.browser.supported()) {
         '<a href="http://google.com"></a>' +
         '<a href="MAILTO:christopher@foobar.com"></a>' +
         '<a href="mango time"></a>' +
-        '<a href="ftp://google.com"></a>',
+        '<a href="ftp://google.com"></a>' +
+        '<a href="[some_fa_macro]"></a>' +
+        '<a href="[some_fa_macro] "></a>' +
+        '<a href=" [some_fa_macro]"></a>',
         rules
       ),
       '<a href="/foobar"></a>' +
       '<a href="https://google.com"></a>' +
       '<a href="http://google.com"></a>' +
       '<a href="mailto:christopher@foobar.com"></a>' +
+      '<a></a>' +
+      '<a></a>' +
+      '<a href="[some_fa_macro]"></a>' +
       '<a></a>' +
       '<a></a>'
     );
@@ -574,6 +580,24 @@ if (wysihtml5.browser.supported()) {
       this.sanitize('<a href="mailto:foo@bar.com">foo</a>', rules),
       '<a href="mailto:foo@bar.com">foo</a>',
       "'mailto:' urls are not stripped"
+    );
+  });
+
+  test("Check style attributes", function() {
+    var rules = {
+      tags: {
+        span: {
+          check_attributes: {
+            "style": "style"
+          }
+        }
+      }
+    };
+
+    this.equal(
+      this.sanitize('<span style="font-weight:bold">bar</span>', rules),
+      '<span style="font-weight:bold">bar</span>',
+      "custom style attributes are not stripped"
     );
   });
   
