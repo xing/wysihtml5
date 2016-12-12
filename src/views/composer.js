@@ -322,11 +322,11 @@
     
     _initLineBreaking: function() {
       var that                              = this,
-          USE_NATIVE_LINE_BREAK_INSIDE_TAGS = ["LI", "P", "H1", "H2", "H3", "H4", "H5", "H6"],
+          USE_NATIVE_LINE_BREAK_INSIDE_TAGS = ["LI", "P", "H1", "H2", "H3", "H4", "H5", "H6", "BLOCKQUOTE"],
           LIST_TAGS                         = ["UL", "OL", "MENU"];
       
       function adjust(selectedNode) {
-        var parentElement = dom.getParentElement(selectedNode, { nodeName: ["P", "DIV"] }, 2);
+        var parentElement = dom.getParentElement(selectedNode, { nodeName: ["P", "DIV", "BLOCKQUOTE"] }, 2);
         if (parentElement) {
           that.selection.executeAndRestore(function() {
             if (that.config.useLineBreaks) {
@@ -368,6 +368,11 @@
         var keyCode = event.keyCode;
         
         if (event.shiftKey) {
+          if (keyCode === wysihtml5.ENTER_KEY && !wysihtml5.browser.insertsLineBreaksOnReturn()) {
+            that.commands.exec("insertLineBreak");
+            event.preventDefault();
+          }
+
           return;
         }
         
@@ -377,6 +382,36 @@
         
         var blockElement = dom.getParentElement(that.selection.getSelectedNode(), { nodeName: USE_NATIVE_LINE_BREAK_INSIDE_TAGS }, 4);
         if (blockElement) {
+          if (blockElement.nodeName == "BLOCKQUOTE" && keyCode === wysihtml5.ENTER_KEY) {
+            if (wysihtml5.browser.insertsLineBreaksOnReturn() || wysihtml5.browser.wrapsContentsOfBlockquoteInParagraphs()) {
+              var newParagraph;
+
+              that.selection.executeAndRestore(function () {
+                var focusPlaceholder = '<span class="_wysihtml5-temp-placeholder">';
+                var parts = blockElement.innerHTML.split(focusPlaceholder);
+
+                if (!parts[1]) {
+                  // We're in IE 8
+                  focusPlaceholder = '<SPAN class=_wysihtml5-temp-placeholder>';
+                  parts = blockElement.innerHTML.split(focusPlaceholder);
+                }
+
+                blockElement.innerHTML = parts[0];
+                newParagraph = that.doc.createElement("p");
+                newParagraph.innerHTML = focusPlaceholder + parts[1] + "<br>";
+                dom.insert(newParagraph).after(blockElement);
+              });
+
+              if (newParagraph) {
+                that.selection.selectNode(newParagraph);
+                adjust(newParagraph);
+              }
+
+              event.preventDefault();
+              return;
+            }
+          }
+
           setTimeout(function() {
             // Unwrap paragraph after leaving a list or a H1-6
             var selectedNode = that.selection.getSelectedNode(),
@@ -394,7 +429,7 @@
               }
             }
 
-            if (keyCode === wysihtml5.ENTER_KEY && blockElement.nodeName.match(/^H[1-6]$/)) {
+            if (keyCode === wysihtml5.ENTER_KEY && blockElement.nodeName.match(/^H[1-6]|BLOCKQUOTE$/)) {
               adjust(selectedNode);
             }
           }, 0);
