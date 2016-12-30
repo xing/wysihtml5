@@ -213,6 +213,7 @@ wysihtml5.dom.parse = (function() {
         addClass            = rule.add_class,             // add classes based on existing attributes
         setAttributes       = rule.set_attributes,        // attributes to set on the current node
         checkAttributes     = rule.check_attributes,      // check/convert values of attributes
+		allowAttributes		= rule.allow_attributes,      // allow attributes
         allowedClasses      = currentRules.classes,
         i                   = 0,
         classes             = [],
@@ -242,6 +243,17 @@ wysihtml5.dom.parse = (function() {
           attributes[attributeName] = newAttributeValue;
         }
       }
+    }
+	
+	if (allowAttributes) {
+        for (attributeName in allowAttributes) {
+        	alert(attributeName)
+          newAttributeValue = _getAttribute(oldNode, attributeName);
+        	
+          if(allowAttributes[attributeName]!=null  && newAttributeValue){
+	          attributes[attributeName] = newAttributeValue;
+          }
+       }
     }
     
     if (setClass) {
