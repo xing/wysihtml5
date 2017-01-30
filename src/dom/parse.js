@@ -233,7 +233,12 @@ wysihtml5.dom.parse = (function() {
     
     if (checkAttributes) {
       for (attributeName in checkAttributes) {
-        method = attributeCheckMethods[checkAttributes[attributeName]];
+        methodName = checkAttributes[attributeName];
+        if (typeof methodName === "string") {
+          method = attributeCheckMethods[methodName];
+        } else {
+          method = methodName;
+        }
         if (!method) {
           continue;
         }
