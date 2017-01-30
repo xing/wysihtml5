@@ -9,10 +9,18 @@
     // Needed for firefox in order to display a proper caret in an empty contentEditable
     CARET_HACK: "<br>",
 
-    constructor: function(parent, textareaElement, config) {
-      this.base(parent, textareaElement, config);
-      this.textarea = this.parent.textarea;
-      this._initSandbox();
+    constructor: function(parent, editableElement, config) {
+      this.base(parent, editableElement, config);
+      if (!this.config.noTextarea) {
+          this.textarea = this.parent.textarea;
+      } else {
+          this.contentEditable = editableElement;
+      }
+      if (this.config.noIframe) {
+          this._initIframelessSandbox();
+      } else {
+          this._initSandbox();
+      }
     },
 
     clear: function() {
@@ -40,11 +48,15 @@
         this.element.innerText = html;
       }
     },
+    
+    cleanUp: function() {
+        this.parent.parse(this.element);
+    },
 
     show: function() {
-      this.iframe.style.display = this._displayStyle || "";
+      (this.iframe || this.contentEditable).style.display = this._displayStyle || "";
       
-      if (!this.textarea.element.disabled) {
+      if (!this.config.noTextarea && !this.textarea.element.disabled) {
         // Firefox needs this, otherwise contentEditable becomes uneditable
         this.disable();
         this.enable();
@@ -52,11 +64,11 @@
     },
 
     hide: function() {
-      this._displayStyle = dom.getStyle("display").from(this.iframe);
+      this._displayStyle = dom.getStyle("display").from((this.iframe || this.contentEditable));
       if (this._displayStyle === "none") {
         this._displayStyle = null;
       }
-      this.iframe.style.display = "none";
+      (this.iframe || this.contentEditable).style.display = "none";
     },
 
     disable: function() {
@@ -94,7 +106,7 @@
     },
 
     hasPlaceholderSet: function() {
-      return this.getTextContent() == this.textarea.element.getAttribute("placeholder") && this.placeholderSet;
+      return this.getTextContent() == ((this.config.noTextarea) ? this.contentEditable.getAttribute("data-placeholder") : this.textarea.element.getAttribute("placeholder")) && this.placeholderSet;
     },
 
     isEmpty: function() {
@@ -104,6 +116,23 @@
              innerHTML === "<p></p>"     ||
              innerHTML === "<p><br></p>" ||
              this.hasPlaceholderSet();
+    },
+    
+    _initIframelessSandbox: function() {
+        var that = this;
+        
+        if (this.config.noTextarea) {
+            this.sandbox = new dom.IframelessSandbox(function() {
+                that._create();
+            }, {}, this.contentEditable);
+        } else {
+            this.sandbox = new dom.IframelessSandbox(function() {
+                that._create();
+            });
+            this.contentEditable = this.sandbox.getContentEditable();
+            dom.insert(this.contentEditable).after(this.textarea.element);
+            this._createWysiwygFormField();
+        }
     },
 
     _initSandbox: function() {
@@ -119,38 +148,47 @@
       var textareaElement = this.textarea.element;
       dom.insert(this.iframe).after(textareaElement);
       
-      // Create hidden field which tells the server after submit, that the user used an wysiwyg editor
-      if (textareaElement.form) {
-        var hiddenField = document.createElement("input");
-        hiddenField.type   = "hidden";
-        hiddenField.name   = "_wysihtml5_mode";
-        hiddenField.value  = 1;
-        dom.insert(hiddenField).after(textareaElement);
-      }
+      this._createWysiwygFormField();
+    },
+    
+    // Creates hidden field which tells the server after submit, that the user used an wysiwyg editor
+    _createWysiwygFormField: function() {
+        if (this.textarea.element.form) {
+          var hiddenField = document.createElement("input");
+          hiddenField.type   = "hidden";
+          hiddenField.name   = "_wysihtml5_mode";
+          hiddenField.value  = 1;
+          dom.insert(hiddenField).after(this.textarea.element);
+        }
     },
 
     _create: function() {
       var that = this;
-      
       this.doc                = this.sandbox.getDocument();
-      this.element            = this.doc.body;
-      this.textarea           = this.parent.textarea;
-      this.element.innerHTML  = this.textarea.getValue(true);
+      this.element            = (this.config.noIframe) ? this.sandbox.getContentEditable() : this.doc.body;
+      if (!this.config.noTextarea) {
+          this.textarea           = this.parent.textarea;
+          this.element.innerHTML  = this.textarea.getValue(true);
+      } else {
+          this.cleanUp(); // cleans contenteditable on initiation as it may contain html
+      }
       
       // Make sure our selection handler is ready
-      this.selection = new wysihtml5.Selection(this.parent);
+      this.selection = new wysihtml5.Selection(this.parent, this.element);
       
       // Make sure commands dispatcher is ready
       this.commands  = new wysihtml5.Commands(this.parent);
       
-      dom.copyAttributes([
-        "className", "spellcheck", "title", "lang", "dir", "accessKey"
-      ]).from(this.textarea.element).to(this.element);
+      if (!this.config.noTextarea) {
+          dom.copyAttributes([
+              "className", "spellcheck", "title", "lang", "dir", "accessKey"
+          ]).from(this.textarea.element).to(this.element);
+      }
       
       dom.addClass(this.element, this.config.composerClassName);
       // 
-      // // Make the editor look like the original textarea, by syncing styles
-      if (this.config.style) {
+      // Make the editor look like the original textarea, by syncing styles
+      if (this.config.style && !this.config.noIframe) {
         this.style();
       }
       
@@ -159,19 +197,19 @@
       var name = this.config.name;
       if (name) {
         dom.addClass(this.element, name);
-        dom.addClass(this.iframe, name);
+        if (!this.config.noIframe) { dom.addClass(this.iframe, name); }
       }
       
       this.enable();
       
-      if (this.textarea.element.disabled) {
+      if (!this.config.noTextarea && this.textarea.element.disabled) {
         this.disable();
       }
       
       // Simulate html5 placeholder attribute on contentEditable element
       var placeholderText = typeof(this.config.placeholder) === "string"
         ? this.config.placeholder
-        : this.textarea.element.getAttribute("placeholder");
+        : ((this.config.noTextarea) ? this.contentEditable.getAttribute("data-placeholder") : this.textarea.element.getAttribute("placeholder"));
       if (placeholderText) {
         dom.simulatePlaceholder(this.parent, this, placeholderText);
       }
@@ -186,7 +224,7 @@
       
       // Simulate html5 autofocus on contentEditable element
       // This doesn't work on IOS (5.1.1)
-      if ((this.textarea.element.hasAttribute("autofocus") || document.querySelector(":focus") == this.textarea.element) && !browser.isIos()) {
+      if (!this.config.noTextarea && (this.textarea.element.hasAttribute("autofocus") || document.querySelector(":focus") == this.textarea.element) && !browser.isIos()) {
         setTimeout(function() { that.focus(true); }, 100);
       }
       
@@ -201,7 +239,7 @@
       }
       
       // Okay hide the textarea, we are ready to go
-      this.textarea.hide();
+      if (!this.config.noTextarea) { this.textarea.hide(); }
       
       // Fire global (before-)load event
       this.parent.fire("beforeload").fire("load");
@@ -364,7 +402,7 @@
       }
 
       
-      dom.observe(this.doc, "keydown", function(event) {
+      dom.observe(this.element, "keydown", function(event) {
         var keyCode = event.keyCode;
         
         if (event.shiftKey) {
@@ -374,7 +412,6 @@
         if (keyCode !== wysihtml5.ENTER_KEY && keyCode !== wysihtml5.BACKSPACE_KEY) {
           return;
         }
-        
         var blockElement = dom.getParentElement(that.selection.getSelectedNode(), { nodeName: USE_NATIVE_LINE_BREAK_INSIDE_TAGS }, 4);
         if (blockElement) {
           setTimeout(function() {
@@ -402,8 +439,9 @@
         }
         
         if (that.config.useLineBreaks && keyCode === wysihtml5.ENTER_KEY && !wysihtml5.browser.insertsLineBreaksOnReturn()) {
-          that.commands.exec("insertLineBreak");
           event.preventDefault();
+          that.commands.exec("insertLineBreak");
+          
         }
       });
     }

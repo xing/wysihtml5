@@ -60,6 +60,7 @@
       if (!range) {
         return false;
       }
+      composer.selection.getSelection().removeAllRanges();
       _getApplier(tagName, className, classRegExp).toggleRange(range);
       composer.selection.setSelection(range);
     },

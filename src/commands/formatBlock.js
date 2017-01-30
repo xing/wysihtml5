@@ -3,7 +3,7 @@
       // Following elements are grouped
       // when the caret is within a H1 and the H4 is invoked, the H1 should turn into H4
       // instead of creating a H4 within a H1 which would result in semantically invalid html
-      BLOCK_ELEMENTS_GROUP    = ["H1", "H2", "H3", "H4", "H5", "H6", "P", "BLOCKQUOTE", "DIV"];
+      BLOCK_ELEMENTS_GROUP    = ["H1", "H2", "H3", "H4", "H5", "H6", "P", "PRE", "BLOCKQUOTE", "DIV"];
   
   /**
    * Remove similiar classes (based on classRegExp)
@@ -130,6 +130,7 @@
       });
     }
     doc.execCommand(command, false, nodeName);
+    
     if (eventListener) {
       eventListener.stop();
     }
@@ -179,10 +180,14 @@
       // Find similiar block element and rename it (<h2 class="foo"></h2>  =>  <h1 class="foo"></h1>)
       if (nodeName === null || wysihtml5.lang.array(BLOCK_ELEMENTS_GROUP).contains(nodeName)) {
         selectedNode = composer.selection.getSelectedNode();
+        
         blockElement = dom.getParentElement(selectedNode, {
           nodeName: BLOCK_ELEMENTS_GROUP
         });
-
+        if (blockElement == composer.element) {
+            blockElement = null;
+        }
+        
         if (blockElement) {
           composer.selection.executeAndRestore(function() {
             // Rename current block element to new block element and add class

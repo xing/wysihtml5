@@ -23,7 +23,7 @@
   
   wysihtml5.toolbar.Toolbar = Base.extend(
     /** @scope wysihtml5.toolbar.Toolbar.prototype */ {
-    constructor: function(editor, container) {
+    constructor: function(editor, container, showOnInit) {
       this.editor     = editor;
       this.container  = typeof(container) === "string" ? document.getElementById(container) : container;
       this.composer   = editor.composer;
@@ -32,7 +32,7 @@
       this._getLinks("action");
 
       this._observe();
-      this.show();
+      if (showOnInit) { this.show(); }
       
       var speechInputLinks  = this.container.querySelectorAll("[data-wysihtml5-command=insertSpeech]"),
           length            = speechInputLinks.length,
@@ -77,8 +77,13 @@
           caretBookmark;
       
       if (dialogElement) {
-        dialog = new wysihtml5.toolbar.Dialog(link, dialogElement);
-
+        if (wysihtml5.toolbar["Dialog_" + command]) {
+            console.log('a');
+            dialog = new wysihtml5.toolbar["Dialog_" + command](link, dialogElement);
+        } else {
+            dialog = new wysihtml5.toolbar.Dialog(link, dialogElement);
+        }
+        
         dialog.on("show", function() {
           caretBookmark = that.composer.selection.getBookmark();
 
@@ -134,11 +139,16 @@
     execAction: function(action) {
       var editor = this.editor;
       if (action === "change_view") {
-        if (editor.currentView === editor.textarea) {
-          editor.fire("change_view", "composer");
-        } else {
-          editor.fire("change_view", "textarea");
+        if (editor.textarea) { 
+            if (editor.currentView === editor.textarea) {
+              editor.fire("change_view", "composer");
+            } else {
+              editor.fire("change_view", "textarea");
+            }
         }
+      }
+      if (action == "showSource") {
+          editor.fire("showSource");
       }
     },
 
@@ -179,32 +189,28 @@
         that.execAction(action);
         event.preventDefault();
       });
+      
+      editor.on("interaction:composer", function() {
+          that._updateLinkStates();
+      });
 
       editor.on("focus:composer", function() {
         that.bookmark = null;
-        clearInterval(that.interval);
-        that.interval = setInterval(function() { that._updateLinkStates(); }, 500);
-      });
-
-      editor.on("blur:composer", function() {
-        clearInterval(that.interval);
-      });
-
-      editor.on("destroy:composer", function() {
-        clearInterval(that.interval);
       });
 
       editor.on("change_view", function(currentView) {
         // Set timeout needed in order to let the blur event fire first
-        setTimeout(function() {
-          that.commandsDisabled = (currentView !== "composer");
-          that._updateLinkStates();
-          if (that.commandsDisabled) {
-            dom.addClass(container, CLASS_NAME_COMMANDS_DISABLED);
-          } else {
-            dom.removeClass(container, CLASS_NAME_COMMANDS_DISABLED);
-          }
-        }, 0);
+        if (editor.textarea) {
+            setTimeout(function() {
+              that.commandsDisabled = (currentView !== "composer");
+              that._updateLinkStates();
+              if (that.commandsDisabled) {
+                dom.addClass(container, CLASS_NAME_COMMANDS_DISABLED);
+              } else {
+                dom.removeClass(container, CLASS_NAME_COMMANDS_DISABLED);
+              }
+            }, 0);
+        }
       });
     },
 

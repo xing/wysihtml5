@@ -21,24 +21,43 @@
   wysihtml5.views.Composer.prototype.observe = function() {
     var that                = this,
         state               = this.getValue(),
-        iframe              = this.sandbox.getIframe(),
+        container           = (this.sandbox.getIframe) ? this.sandbox.getIframe() : this.sandbox.getContentEditable(),
         element             = this.element,
-        focusBlurElement    = browser.supportsEventsInIframeCorrectly() ? element : this.sandbox.getWindow(),
-        pasteEvents         = ["drop", "paste"];
+        focusBlurElement    = (browser.supportsEventsInIframeCorrectly() || this.sandbox.getContentEditable) ? element : this.sandbox.getWindow(),
+        pasteEvents         = ["drop", "paste"],
+        interactionEvents   = ["drop", "paste", "mouseup", "focus", "blur", "keyup"];
 
     // --------- destroy:composer event ---------
-    dom.observe(iframe, "DOMNodeRemoved", function() {
+    dom.observe(container, "DOMNodeRemoved", function() {
       clearInterval(domNodeRemovedInterval);
       that.parent.fire("destroy:composer");
     });
 
     // DOMNodeRemoved event is not supported in IE 8
-    var domNodeRemovedInterval = setInterval(function() {
-      if (!dom.contains(document.documentElement, iframe)) {
-        clearInterval(domNodeRemovedInterval);
-        that.parent.fire("destroy:composer");
+    if (!browser.supportsMutationEvents()) {
+        var domNodeRemovedInterval = setInterval(function() {
+          if (!dom.contains(document.documentElement, container)) {
+            clearInterval(domNodeRemovedInterval);
+            that.parent.fire("destroy:composer");
+          }
+        }, 250);
+    }
+    
+    // --------- User interaction tracking --
+    
+    dom.observe(focusBlurElement, interactionEvents, function() {
+      setTimeout(function() {
+        that.parent.fire("interaction").fire("interaction:composer");
+      }, 0);
+    });
+    
+    dom.observe(element, "mousedown", function(event) {
+      var target   = event.target,
+          nodeName = target.nodeName;
+      if (that.config.handleTables && (nodeName == "TD" || nodeName == "TH")) {
+          wysihtml5.quirks.tableCellsSelection(target, element);
       }
-    }, 250);
+    });
 
     // --------- Focus & blur logic ---------
     dom.observe(focusBlurElement, "focus", function() {
@@ -148,7 +167,7 @@
     });
     
     // --------- IE 8+9 focus the editor when the iframe is clicked (without actually firing the 'focus' event on the <body>) ---------
-    if (browser.hasIframeFocusIssue()) {
+    if (browser.hasIframeFocusIssue() && this.iframe) {
       dom.observe(this.iframe, "focus", function() {
         setTimeout(function() {
           if (that.doc.querySelector(":focus") !== that.element) {

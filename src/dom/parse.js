@@ -49,6 +49,7 @@
  *    });
  *    // => '<p class="red">foo</p><p>bar</p>'
  */
+
 wysihtml5.dom.parse = (function() {
   
   /**
@@ -119,7 +120,35 @@ wysihtml5.dom.parse = (function() {
     newNode = method && method(oldNode);
     
     if (!newNode) {
-      return null;
+        if (newNode === false) {
+            // false defines that tag should be removed but contents should remain (unwrap)
+            
+            fragment = oldNode.ownerDocument.createDocumentFragment();
+            // TODO: try to minimize surplus spaces
+            if (wysihtml5.lang.array([
+                "div", "pre", "p",
+                "table", "td", "th",
+                "ul", "ol", "li",
+                "dd", "dl",
+                "footer", "header", "section",
+                "h1", "h2", "h3", "h4", "h5", "h6"
+            ]).contains(oldNode.nodeName.toLowerCase()) && oldNode.parentNode.firstChild !== oldNode) {
+                
+                // add space as first when unwraping non-textflow elements
+                fragment.appendChild(oldNode.ownerDocument.createTextNode(" "));
+            }
+            
+            
+            for (i=0; i<oldChildsLength; i++) {
+              newChild = _convert(oldChilds[i], cleanUp);
+              if (newChild) {
+                fragment.appendChild(newChild);
+              }
+            }
+            return fragment;
+        } else {
+            return null;
+        }
     }
     
     for (i=0; i<oldChildsLength; i++) {
@@ -139,7 +168,6 @@ wysihtml5.dom.parse = (function() {
       }
       return fragment;
     }
-    
     return newNode;
   }
   
@@ -149,6 +177,7 @@ wysihtml5.dom.parse = (function() {
         tagRules    = currentRules.tags,
         nodeName    = oldNode.nodeName.toLowerCase(),
         scopeName   = oldNode.scopeName;
+        
     
     /**
      * We already parsed that element
@@ -172,7 +201,6 @@ wysihtml5.dom.parse = (function() {
     if (scopeName && scopeName != "HTML") {
       nodeName = scopeName + ":" + nodeName;
     }
-    
     /**
      * Repair node
      * IE is a bit bitchy when it comes to invalid nested markup which includes unclosed tags
@@ -190,6 +218,13 @@ wysihtml5.dom.parse = (function() {
       rule = tagRules[nodeName];
       if (!rule || rule.remove) {
         return null;
+      } else if (rule.unwrap) {
+        return false;
+      }
+      
+      // tests if type condition is met or node should be removed/unwrapped
+      if (rule.one_of_type && !_testTypes(oldNode, currentRules, rule.one_of_type)) {
+        return (rule.remove_action && rule.remove_action == "unwrap") ? false : null;
       }
       
       rule = typeof(rule) === "string" ? { rename_tag: rule } : rule;
@@ -199,12 +234,109 @@ wysihtml5.dom.parse = (function() {
       // Remove empty unknown elements
       return null;
     }
-    
     newNode = oldNode.ownerDocument.createElement(rule.rename_tag || nodeName);
     _handleAttributes(oldNode, newNode, rule);
-    
+    _handleStyles(oldNode, newNode, rule);
     oldNode = null;
+    
     return newNode;
+  }
+  
+  function _testTypes(oldNode, rules, types) {
+    var definition, type;
+    for (type in types) {
+      if (types.hasOwnProperty(type) && rules.type_definitions && rules.type_definitions[type]) {
+        definition = rules.type_definitions[type];
+        if (_testType(oldNode, definition)) {
+          return true; 
+        }
+      }
+    }
+    return false;
+  }
+  
+  function array_contains(a, obj) {
+      var i = a.length;
+      while (i--) {
+         if (a[i] === obj) {
+             return true;
+         }
+      }
+      return false;
+  }
+  
+  function _testType(oldNode, definition) {
+      
+    var nodeClasses = oldNode.getAttribute("class"),
+        nodeStyles =  oldNode.style,
+        classesLength, s, s_corrected, a, attr, currentClass, styleProp;
+        
+    // test for classes, if one found return true
+    if (nodeClasses && definition.classes) {
+      nodeClasses = nodeClasses.replace(/^\s+/g, '').replace(/\s+$/g, '').split(WHITE_SPACE_REG_EXP);
+      classesLength = nodeClasses.length;
+      for (var i = 0; i < classesLength; i++) {
+        if (definition.classes[nodeClasses[i]]) {
+          return true;
+        }
+      }
+    }
+    
+    // test for styles, if one found return true
+    if (nodeStyles && definition.styles) {
+      for (s in definition.styles) {
+        if (definition.styles.hasOwnProperty(s)) {
+          
+          // fix browser inconsitencies here
+          s_corrected = s;
+          if (s == "float") {
+            if (nodeStyles.styleFloat) { s_corrected = "styleFloat"; }
+            if (nodeStyles.cssFloat) { s_corrected = "cssFloat"; }
+          }
+          
+          if (nodeStyles[s_corrected]) {
+            if (array_contains(definition.styles[s], nodeStyles[s_corrected])) {
+              return true;
+            }
+          }
+        }
+      }
+    }
+    // test for attributes in general against regex match
+    if (definition.attrs) {
+        for (a in definition.attrs) {
+            if (definition.attrs.hasOwnProperty(a)) {
+                attr = _getAttribute(oldNode, a);
+                if (typeof(attr) === "string") {
+                    if (attr.search(definition.attrs[a]) > -1) {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+    return false;
+  }
+  
+  function _handleStyles(oldNode, newNode, rule) {
+    var s;
+    if(rule && rule.keep_styles) {
+      for (s in rule.keep_styles) {
+        if (rule.keep_styles.hasOwnProperty(s)) {
+          if (s == "float") {
+            // IE compability
+            if (oldNode.style.styleFloat) {
+              newNode.style.styleFloat = oldNode.style.styleFloat;
+            }
+            if (oldNode.style.cssFloat) {
+              newNode.style.cssFloat = oldNode.style.cssFloat;
+            }
+           } else if (oldNode.style[s]) {
+             newNode.style[s] = oldNode.style[s];
+           }
+        }
+      }
+    }
   }
   
   function _handleAttributes(oldNode, newNode, rule) {

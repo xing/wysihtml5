@@ -7,8 +7,9 @@ wysihtml5.views.View = Base.extend(
     this.parent   = parent;
     this.element  = textareaElement;
     this.config   = config;
-    
-    this._observeViewChange();
+    if (!this.config.noTextarea) {
+        this._observeViewChange();
+    }
   },
   
   _observeViewChange: function() {

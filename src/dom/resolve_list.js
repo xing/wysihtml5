@@ -51,7 +51,7 @@
     
     if (useLineBreaks) {
       // Insert line break if list is after a non-block element
-      if (previousSibling && !_isBlockElement(previousSibling)) {
+      if (previousSibling && !_isBlockElement(previousSibling) && !_isLineBreak(previousSibling)) {
         _appendLineBreak(fragment);
       }
 

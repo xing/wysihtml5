@@ -80,6 +80,10 @@
 <script src="../src/toolbar/toolbar.js"></script>
 <script src="../src/editor.js"></script>
 
+<!-- additions for iflameless  -->
+<script src="../src/dom/iframeless_sandbox.js"></script>
+<!-- -->
+
 <script src="../src/assert/html_equal.js"></script>
 
 <script src="browser_test.js"></script>
@@ -113,7 +117,9 @@
       '<script src="dom/parse_test.js"><\/script>'                        +
       '<script src="quirks/clean_pasted_html_test.js"><\/script>'         +
       '<script src="undo_manager_test.js"><\/script>'                     +
-      '<script src="editor_test.js"><\/script>'
+      '<script src="editor_test.js"><\/script>'                           +
+      '<script src="editor_iframeless_test.js"><\/script>'                +
+      '<script src="editor_commands_test.js"><\/script>'
     );
   }
 </script>

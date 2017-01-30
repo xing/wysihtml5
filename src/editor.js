@@ -1,7 +1,7 @@
 /**
  * WYSIHTML5 Editor
  *
- * @param {Element} textareaElement Reference to the textarea which should be turned into a rich text interface
+ * @param {Element} editableElement Reference to the textarea which should be turned into a rich text interface
  * @param {Object} [config] See defaultConfig object below for explanation of each individual config option
  *
  * @events
@@ -39,8 +39,11 @@
     style:                true,
     // Id of the toolbar element, pass falsey value if you don't want any toolbar logic
     toolbar:              undef,
+    showToolbarAfterInit: true,
     // Whether urls, entered by the user should automatically become clickable-links
     autoLink:             true,
+    // Includes table editing events and cell selection tracking 
+    handleTables:         true,
     // Object which includes parser rules to apply when html gets inserted via copy & paste
     // See parser_rules/*.js for examples
     parserRules:          { tags: { br: {}, span: {}, div: {}, p: {} }, classes: {} },
@@ -59,17 +62,27 @@
     // Whether the rich text editor should be rendered on touch devices (wysihtml5 >= 0.3.0 comes with basic support for iOS 5)
     supportTouchDevices:  true,
     // Whether senseless <span> elements (empty or without attributes) should be removed/replaced with their content
-    cleanUp:              true
+    cleanUp:              true,
+    // Whether to use div instead of secure iframe
+    noIframe: false,
+    xingAlert: false
   };
   
   wysihtml5.Editor = wysihtml5.lang.Dispatcher.extend(
     /** @scope wysihtml5.Editor.prototype */ {
-    constructor: function(textareaElement, config) {
-      this.textareaElement  = typeof(textareaElement) === "string" ? document.getElementById(textareaElement) : textareaElement;
+    constructor: function(editableElement, config) {
+      this.editableElement  = typeof(editableElement) === "string" ? document.getElementById(editableElement) : editableElement;
       this.config           = wysihtml5.lang.object({}).merge(defaultConfig).merge(config).get();
-      this.textarea         = new wysihtml5.views.Textarea(this, this.textareaElement, this.config);
-      this.currentView      = this.textarea;
       this._isCompatible    = wysihtml5.browser.supported();
+      
+      if (this.editableElement.nodeName.toLowerCase() != "textarea") {
+          this.config.noIframe = true;
+          this.config.noTextarea = true;
+      }
+      if (!this.config.noTextarea) {
+          this.textarea         = new wysihtml5.views.Textarea(this, this.editableElement, this.config);
+          this.currentView      = this.textarea;
+      }
       
       // Sort out unsupported/unwanted browsers here
       if (!this._isCompatible || (!this.config.supportTouchDevices && wysihtml5.browser.isTouchDevice())) {
@@ -81,23 +94,28 @@
       // Add class name to body, to indicate that the editor is supported
       wysihtml5.dom.addClass(document.body, this.config.bodyClassName);
       
-      this.composer = new wysihtml5.views.Composer(this, this.textareaElement, this.config);
+      this.composer = new wysihtml5.views.Composer(this, this.editableElement, this.config);
       this.currentView = this.composer;
       
       if (typeof(this.config.parser) === "function") {
         this._initParser();
       }
       
-      this.on("beforeload", function() {
-        this.synchronizer = new wysihtml5.views.Synchronizer(this, this.textarea, this.composer);
-        if (this.config.toolbar) {
-          this.toolbar = new wysihtml5.toolbar.Toolbar(this, this.config.toolbar);
-        }
-      });
+      this.on("beforeload", this.handleBeforeLoad);
       
-      try {
-        console.log("Heya! This page is using wysihtml5 for rich text editing. Check out https://github.com/xing/wysihtml5");
-      } catch(e) {}
+      
+      if (this.config.xingAlert) {
+          try { console.log("Heya! This page is using wysihtml5 for rich text editing. Check out https://github.com/xing/wysihtml5");} catch(e) {}
+      }
+    },
+    
+    handleBeforeLoad: function() {
+        if (!this.config.noTextarea) {
+            this.synchronizer = new wysihtml5.views.Synchronizer(this, this.textarea, this.composer);
+        }
+        if (this.config.toolbar) {
+          this.toolbar = new wysihtml5.toolbar.Toolbar(this, this.config.toolbar, this.config.showToolbarAfterInit);
+        }
     },
     
     isCompatible: function() {
@@ -122,6 +140,10 @@
       
       this.currentView.setValue(html, parse);
       return this;
+    },
+    
+    cleanUp: function() {
+        this.currentView.cleanUp();
     },
 
     focus: function(setToEnd) {
@@ -154,7 +176,8 @@
     },
     
     parse: function(htmlOrElement) {
-      var returnValue = this.config.parser(htmlOrElement, this.config.parserRules, this.composer.sandbox.getDocument(), this.config.cleanUp);
+      var parseContext = (this.config.noIframe) ? document : this.composer.sandbox.getDocument();
+      var returnValue = this.config.parser(htmlOrElement, this.config.parserRules, parseContext, this.config.cleanUp);
       if (typeof(htmlOrElement) === "object") {
         wysihtml5.quirks.redraw(htmlOrElement);
       }

@@ -148,8 +148,8 @@
       this.position++;
       
       var range   = this.composer.selection.getRange(),
-          node    = range.startContainer || this.element,
-          offset  = range.startOffset    || 0,
+          node    = (range && range.startContainer) ? range.startContainer : this.element,
+          offset  = (range && range.startOffset) ? range.startOffset : 0,
           element,
           position;
       

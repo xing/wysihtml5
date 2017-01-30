@@ -20,13 +20,14 @@
   
   wysihtml5.Selection = Base.extend(
     /** @scope wysihtml5.Selection.prototype */ {
-    constructor: function(editor) {
+    constructor: function(editor, contain) {
       // Make sure that our external range library is initialized
       window.rangy.init();
       
       this.editor   = editor;
       this.composer = editor.composer;
       this.doc      = this.composer.doc;
+      this.contain = contain;
     },
     
     /**
@@ -75,6 +76,7 @@
      */
     setAfter: function(node) {
       var range = rangy.createRange(this.doc);
+      
       range.setStartAfter(node);
       range.setEndAfter(node);
       return this.setSelection(range);
@@ -269,6 +271,7 @@
       var range     = rangy.createRange(this.doc),
           node      = range.createContextualFragment(html),
           lastChild = node.lastChild;
+    
       this.insertNode(node);
       if (lastChild) {
         this.setAfter(lastChild);
@@ -422,9 +425,33 @@
       }
     },
     
+    fixRangeOverflow: function(range) {
+        
+        if (this.contain && range) {
+            var containment = range.compareNode(this.contain);
+            
+            if (containment !== 2) {
+                if (containment === 1) {
+                    range.setStartBefore(this.contain.firstChild);
+                }
+                if (containment === 0) {
+                    range.setEndAfter(this.contain.lastChild);
+                }
+                if (containment === 3) {
+                    range.setStartBefore(this.contain.firstChild);
+                    range.setEndAfter(this.contain.lastChild);
+                }
+                
+            }
+        }
+        
+    },
+    
     getRange: function() {
-      var selection = this.getSelection();
-      return selection && selection.rangeCount && selection.getRangeAt(0);
+      var selection = this.getSelection(),
+          range = selection && selection.rangeCount && selection.getRangeAt(0);
+      this.fixRangeOverflow(range);
+      return range;
     },
 
     getSelection: function() {
@@ -435,7 +462,12 @@
       var win       = this.doc.defaultView || this.doc.parentWindow,
           selection = rangy.getSelection(win);
       return selection.setSingleRange(range);
+    },
+    
+    isCollapsed: function() {
+        return this.getSelection().isCollapsed;
     }
+    
   });
   
 })(wysihtml5);

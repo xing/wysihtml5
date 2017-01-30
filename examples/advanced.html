@@ -83,8 +83,8 @@
 
 <h1>wysihtml5 - Advanced Editor Example</h1>
 
-<form>
-  <div id="toolbar" style="display: none;">
+<form class="ewrapper">
+  <div class="toolbar" style="display: none;">
     <a data-wysihtml5-command="bold" title="CTRL+B">bold</a> |
     <a data-wysihtml5-command="italic" title="CTRL+I">italic</a> |
     <a data-wysihtml5-command="createLink">insert link</a> |
@@ -126,7 +126,55 @@
     </div>
     
   </div>
-  <textarea id="textarea" placeholder="Enter text ..."></textarea>
+  <textarea class="editable" placeholder="Enter text ..."></textarea>
+  <br><input type="reset" value="Reset form!">
+</form>
+
+<br/><br>asdasdasd:<br/>
+<form class="ewrapper">
+  <div class="toolbar" style="display: none;">
+    <a data-wysihtml5-command="bold" title="CTRL+B">bold</a> |
+    <a data-wysihtml5-command="italic" title="CTRL+I">italic</a> |
+    <a data-wysihtml5-command="createLink">insert link</a> |
+    <a data-wysihtml5-command="insertImage">insert image</a> |
+    <a data-wysihtml5-command="formatBlock" data-wysihtml5-command-value="h1">h1</a> |
+    <a data-wysihtml5-command="formatBlock" data-wysihtml5-command-value="h2">h2</a> |
+    <a data-wysihtml5-command="insertUnorderedList">insertUnorderedList</a> |
+    <a data-wysihtml5-command="insertOrderedList">insertOrderedList</a> |
+    <a data-wysihtml5-command="foreColor" data-wysihtml5-command-value="red">red</a> |
+    <a data-wysihtml5-command="foreColor" data-wysihtml5-command-value="green">green</a> |
+    <a data-wysihtml5-command="foreColor" data-wysihtml5-command-value="blue">blue</a> |
+    <a data-wysihtml5-command="undo">undo</a> |
+    <a data-wysihtml5-command="redo">redo</a> |
+    <a data-wysihtml5-command="insertSpeech">speech</a>
+    <a data-wysihtml5-action="change_view">switch to html view</a>
+    
+    <div data-wysihtml5-dialog="createLink" style="display: none;">
+      <label>
+        Link:
+        <input data-wysihtml5-dialog-field="href" value="http://">
+      </label>
+      <a data-wysihtml5-dialog-action="save">OK</a>&nbsp;<a data-wysihtml5-dialog-action="cancel">Cancel</a>
+    </div>
+    
+    <div data-wysihtml5-dialog="insertImage" style="display: none;">
+      <label>
+        Image:
+        <input data-wysihtml5-dialog-field="src" value="http://">
+      </label>
+      <label>
+        Align:
+        <select data-wysihtml5-dialog-field="className">
+          <option value="">default</option>
+          <option value="wysiwyg-float-left">left</option>
+          <option value="wysiwyg-float-right">right</option>
+        </select>
+      </label>
+      <a data-wysihtml5-dialog-action="save">OK</a>&nbsp;<a data-wysihtml5-dialog-action="cancel">Cancel</a>
+    </div>
+    
+  </div>
+  <textarea class="editable" placeholder="Enter text ..."></textarea>
   <br><input type="reset" value="Reset form!">
 </form>
 
@@ -135,9 +183,24 @@
 
 <small>powered by <a href="https://github.com/xing/wysihtml5" target="_blank">wysihtml5</a>.</small>
 
+<script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+
 <script src="../parser_rules/advanced.js"></script>
 <script src="../dist/wysihtml5-0.4.0pre.js"></script>
 <script>
+var editors = [];
+ 
+  $('.ewrapper').each(function(idx, wrapper) {
+    var e = new wysihtml5.Editor($(wrapper).find('.editable').get(0), {
+      toolbar:        $(wrapper).find('.toolbar').get(0),
+      parserRules:    wysihtml5ParserRules
+      //showToolbarAfterInit: false
+    });
+    editors.push(e);
+  });
+  
+  
+  /*
   var editor = new wysihtml5.Editor("textarea", {
     toolbar:        "toolbar",
     stylesheets:    "css/stylesheet.css",
@@ -170,5 +233,5 @@
     })
     .on("redo:composer", function() {
       log.innerHTML += "<div>redo:composer</div>";
-    });
+    });*/
 </script>
